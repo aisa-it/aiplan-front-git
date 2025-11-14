@@ -11,7 +11,6 @@
       <q-tooltip>Конференция</q-tooltip>
     </q-btn>
     <WorkspaceNotifications />
-    <SearchButton />
     <GitCreateButton />
     <ProfileButton data-id="profile-button-search-panel" />
   </div>
@@ -22,7 +21,6 @@ import { storeToRefs } from 'pinia';
 import { useUtilsStore } from 'src/stores/utils-store';
 import ProfileButton from 'src/components/ProfileButton.vue';
 import WorkspaceNotifications from 'src/modules/workspace-notifications/ui/WorkspaceNotifications.vue';
-import SearchButton from 'src/components/search-panel/SearchButton.vue';
 import ConferenceIcon from 'src/components/icons/ConferenceIcon.vue';
 import GitCreateButton from './GitCreateButton.vue';
 import { onMounted } from 'vue';
