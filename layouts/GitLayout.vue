@@ -1,489 +1,252 @@
 <template>
-  <q-layout view="lHh Lpr lFf" class="git-layout">
-    <!-- Header -->
-    <q-header elevated class="git-layout__header">
-      <q-toolbar class="git-layout__toolbar">
-        <!-- Drawer toggle для мобильных -->
-        <q-btn
-          v-if="hasRepositories"
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          class="q-mr-sm lt-md"
-          @click="toggleDrawer"
-        />
+  <q-layout
+    v-show="$q.loading.isActive === false"
+    view="lHh Lpr lFf"
+    style="max-height: 100%; max-width: 100%"
+  >
+    <LightsNewYear v-if="utilsStore.ny === true"></LightsNewYear>
+    <SnowFall v-if="utilsStore.ny === true && isSnowEnable" />
+    <div>
+      <GitHeader @toggle="toggleLeftDrawer()" />
+      <PrimaryLoader v-show="generalLoader === true" />
 
-        <!-- Git иконка и заголовок -->
-        <q-icon name="mdi-git" size="28px" class="q-mr-sm" />
-        <q-toolbar-title class="git-layout__title">
-          Git Repository Browser
-        </q-toolbar-title>
+      <GitLayoutDrawer v-model:drawer-open="leftDrawerOpen" />
 
-        <!-- Breadcrumbs для навигации -->
-        <q-breadcrumbs
-          v-if="breadcrumbs.length > 0"
-          class="git-layout__breadcrumbs gt-sm"
-          active-color="white"
-          separator-color="grey-4"
-        >
-          <q-breadcrumbs-el
-            v-for="(crumb, index) in breadcrumbs"
-            :key="index"
-            :label="crumb.label"
-            :icon="crumb.icon"
-            :to="crumb.to"
-            class="git-layout__breadcrumb"
-          />
-        </q-breadcrumbs>
+      <q-page-container>
+        <router-view v-slot="{ Component, route }">
+          <transition
+            appear
+            name="fade"
+            enter-active-class="animated fadeIn"
+            leave-active-class="animated fadeOut"
+          >
+            <component :is="Component" :key="route.path" />
+          </transition>
+        </router-view>
+      </q-page-container>
+    </div>
 
-        <q-space />
-
-        <!-- Поиск по коду -->
-        <q-input
-          v-model="searchQuery"
-          dense
-          standout
-          dark
-          placeholder="Поиск по коду..."
-          class="git-layout__search gt-xs"
-          :style="{ width: searchFocused ? '300px' : '200px' }"
-          @focus="searchFocused = true"
-          @blur="searchFocused = false"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-          <template v-slot:append>
-            <q-icon
-              v-if="searchQuery"
-              name="close"
-              class="cursor-pointer"
-              @click="searchQuery = ''"
-            />
-          </template>
-        </q-input>
-
-        <!-- Кнопка возврата в основное приложение -->
-        <q-btn
-          flat
-          dense
-          round
-          icon="apps"
-          class="q-ml-sm"
-          @click="goToMainApp"
-        >
-          <q-tooltip>Вернуться в основное приложение</q-tooltip>
-        </q-btn>
-
-        <!-- Профиль пользователя -->
-        <ProfileButton class="q-ml-sm" />
-      </q-toolbar>
-    </q-header>
-
-    <!-- Left Drawer - список репозиториев -->
-    <q-drawer
-      v-if="hasRepositories"
-      v-model="drawerOpen"
-      show-if-above
-      bordered
-      :width="280"
-      :breakpoint="1024"
-      class="git-layout__drawer"
-    >
-      <q-scroll-area class="fit">
-        <!-- Navigation Tree компонент -->
-        <GitNavigationTree
-          :workspace-slug="currentWorkspaceSlug"
-          :current-repo="currentRepoName"
-        />
-      </q-scroll-area>
-    </q-drawer>
-
-    <!-- Page Container -->
-    <q-page-container class="git-layout__page-container">
-      <router-view v-slot="{ Component, route }">
-        <transition
-          appear
-          name="fade"
-          enter-active-class="animated fadeIn"
-          leave-active-class="animated fadeOut"
-        >
-          <component :is="Component" :key="route.path" />
-        </transition>
-      </router-view>
-    </q-page-container>
-
-    <!-- Footer - Git информация -->
-    <q-footer
-      v-if="showFooter"
-      elevated
-      class="git-layout__footer"
-    >
-      <q-toolbar class="git-layout__footer-toolbar">
-        <!-- Текущая ветка -->
-        <q-icon name="mdi-source-branch" size="18px" class="q-mr-xs" />
-        <span class="git-layout__footer-text">
-          {{ currentBranch || 'main' }}
-        </span>
-
-        <q-separator vertical inset spaced dark class="q-mx-md" />
-
-        <!-- Информация о последнем коммите -->
-        <template v-if="lastCommit">
-          <q-icon name="mdi-source-commit" size="18px" class="q-mr-xs" />
-          <span class="git-layout__footer-text git-layout__footer-commit">
-            {{ lastCommit.sha.substring(0, 7) }} -
-            {{ lastCommit.message.split('\n')[0].substring(0, 50) }}
-            <template v-if="lastCommit.message.split('\n')[0].length > 50">...</template>
-          </span>
-        </template>
-        <template v-else>
-          <span class="git-layout__footer-text text-grey-5">
-            Нет коммитов
-          </span>
-        </template>
-
-        <q-space />
-
-        <!-- Git статус индикатор -->
-        <q-chip
-          dense
-          size="sm"
-          :color="gitStore.gitEnabled ? 'positive' : 'warning'"
-          text-color="white"
-          icon="mdi-git"
-          class="git-layout__status-chip"
-        >
-          {{ gitStore.gitEnabled ? 'Git активен' : 'Git отключен' }}
-        </q-chip>
-      </q-toolbar>
-    </q-footer>
+    <ReleaseNotePreviewDialog v-model="openReleaseNote" />
   </q-layout>
 </template>
 
-<script setup lang="ts">
-// Core
-import { ref, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+<script lang="ts" setup>
+// core
+import { useQuasar, useMeta } from 'quasar';
 import { storeToRefs } from 'pinia';
+import { useRouter, useRoute } from 'vue-router';
+import { useAiplanStore } from 'src/stores/aiplan-store';
+import { ref, watch, computed, onBeforeMount } from 'vue';
 
-// Stores
-import { useWorkspaceStore } from 'src/stores/workspace-store';
+// stores
+import { useUserStore } from 'src/stores/user-store';
+import { useUtilsStore } from 'src/stores/utils-store';
+import { useLoaderStore } from 'src/stores/loader-store';
 import { useGitStore } from 'src/stores/git-store';
+import { useWorkspaceStore } from 'src/stores/workspace-store';
 
-// Components
-import ProfileButton from 'src/components/ProfileButton.vue';
-import GitNavigationTree from '../components/GitNavigationTree.vue';
+// components
+import PrimaryLoader from 'src/components/loaders/PrimaryLoader.vue';
+import LightsNewYear from 'src/components/LightsNewYear.vue';
+import ReleaseNotePreviewDialog from 'src/components/dialogs/ReleaseNotePreviewDialog.vue';
+import SnowFall from 'src/components/SnowFall.vue';
+import GitLayoutDrawer from '../components/GitLayoutDrawer.vue';
+import GitHeader from '../components/GitHeader.vue';
 
-// Types
-import type { GitCommit } from '../types';
-
-/**
- * Breadcrumb элемент для навигации
- */
-interface Breadcrumb {
-  label: string;
-  icon?: string;
-  to?: string;
-}
-
-// Stores
-const route = useRoute();
-const router = useRouter();
-const workspaceStore = useWorkspaceStore();
+// stores
+const api = useAiplanStore();
+const userStore = useUserStore();
+const utilsStore = useUtilsStore();
+const loaderStore = useLoaderStore();
 const gitStore = useGitStore();
+const workspaceStore = useWorkspaceStore();
 
-// Store refs
-const { currentWorkspaceSlug } = storeToRefs(workspaceStore);
+// store to refs
+const { user } = storeToRefs(userStore);
+const { generalLoader } = storeToRefs(loaderStore);
+const { openReleaseNote } = storeToRefs(utilsStore);
+const { workspaceInfo, currentWorkspaceSlug } = storeToRefs(workspaceStore);
 
-// Reactive state
-const drawerOpen = ref(true);
-const searchQuery = ref('');
-const searchFocused = ref(false);
-const currentBranch = ref<string>('main');
-const lastCommit = ref<GitCommit | null>(null);
+// vars
+const router = useRouter();
+const route = useRoute();
+const $q = useQuasar();
+const { auth } = storeToRefs(api);
+const leftDrawerOpen = ref(false);
 
-/**
- * Текущее имя репозитория из роута
- */
-const currentRepoName = computed(() => {
-  return route.params.repoName as string | undefined;
-});
-
-/**
- * Флаг наличия репозиториев (для отображения drawer)
- */
-const hasRepositories = computed(() => {
-  // TODO: получать из API или store
-  // Пока показываем drawer всегда в Git модуле
-  return route.path.includes('/git');
-});
+const setTheme = () => {
+  if (userStore.getTheme === 'dark' || auth.value) {
+    localStorage.setItem('dark', String(userStore.getTheme === 'dark'));
+    $q.dark.set(userStore.getTheme === 'dark');
+  } else $q.dark.set(false);
+};
 
 /**
- * Флаг отображения footer
- * Показываем footer только когда находимся внутри репозитория
+ * GitLayout - упрощенный layout для Git модуля
+ *
+ * ВАЖНО: GitLayout отвечает за загрузку данных workspace и Git конфигурации.
+ *
+ * GitLayout выполняет:
+ * 1. Проверку авторизации пользователя
+ * 2. Загрузку информации о workspace из route.params
+ * 3. Загрузку Git-специфичной конфигурации
+ * 4. Загрузку utils конфигурации (включая isEnabledJitsi)
+ * 5. Установку темы
+ * 6. Гарантированный сброс loader
  */
-const showFooter = computed(() => {
-  return !!currentRepoName.value;
-});
-
-/**
- * Генерация breadcrumbs на основе текущего роута
- */
-const breadcrumbs = computed<Breadcrumb[]>(() => {
-  const crumbs: Breadcrumb[] = [];
-
-  // Workspace
-  if (currentWorkspaceSlug.value) {
-    crumbs.push({
-      label: currentWorkspaceSlug.value,
-      icon: 'folder',
-      to: `/${currentWorkspaceSlug.value}`,
-    });
-  }
-
-  // Git Home
-  crumbs.push({
-    label: 'Git',
-    icon: 'mdi-git',
-    to: `/${currentWorkspaceSlug.value}/git`,
-  });
-
-  // Repository
-  if (currentRepoName.value) {
-    crumbs.push({
-      label: currentRepoName.value,
-      icon: 'mdi-source-repository',
-      to: `/${currentWorkspaceSlug.value}/git/${currentRepoName.value}`,
-    });
-  }
-
-  // File path (если находимся в file browser)
-  if (route.name === 'git-file-browser') {
-    const pathMatch = route.params.pathMatch as string[] | undefined;
-    if (pathMatch && pathMatch.length > 0) {
-      crumbs.push({
-        label: pathMatch[pathMatch.length - 1],
-        icon: 'folder_open',
-      });
+onBeforeMount(async () => {
+  try {
+    // 1. Проверка авторизации
+    // Если пользователь не загружен, попытаться загрузить
+    if (!user.value || !user.value.id) {
+      console.warn('[GitLayout] User not loaded, attempting to load...');
+      try {
+        await userStore.getUserInfo();
+      } catch (error) {
+        console.error('[GitLayout] Failed to load user info:', error);
+        // Если не авторизован - редирект на страницу логина
+        router.push('/signin');
+        return;
+      }
     }
-  }
 
-  return crumbs;
-});
+    // 1.5. КРИТИЧЕСКИ ВАЖНО: Загрузка utils конфигурации (isEnabledJitsi и др.)
+    // Без этого кнопка конференции не отобразится в GitSearchPanel
+    try {
+      await utilsStore.getVersion();
+      console.log('[GitLayout] Utils config loaded (Jitsi, demo, etc.)');
+    } catch (error) {
+      console.error('[GitLayout] Failed to load utils config:', error);
+      // Не блокируем UI из-за ошибки utils конфигурации
+    }
 
-/**
- * Toggle drawer
- */
-const toggleDrawer = () => {
-  drawerOpen.value = !drawerOpen.value;
-};
+    // 2. КРИТИЧЕСКИ ВАЖНО: Загрузка workspaceInfo
+    // Без этого MainHeader не отобразит верхнюю панель (из-за v-if="workspaceInfo")
+    const workspaceSlug = route.params.workspace as string;
+    if (workspaceSlug && workspaceSlug !== 'undefined') {
+      currentWorkspaceSlug.value = workspaceSlug;
 
-/**
- * Возврат в основное приложение
- */
-const goToMainApp = () => {
-  if (currentWorkspaceSlug.value) {
-    router.push(`/${currentWorkspaceSlug.value}`);
-  } else {
-    router.push('/');
-  }
-};
+      // Загружаем workspaceInfo только если еще не загружен или это другой workspace
+      if (!workspaceInfo.value || workspaceInfo.value.slug !== workspaceSlug) {
+        try {
+          await workspaceStore.getWorkspaceInfo(workspaceSlug);
+          console.log('[GitLayout] Workspace info loaded:', workspaceSlug);
+        } catch (error: any) {
+          console.error('[GitLayout] Failed to load workspace info:', error);
 
-/**
- * Загрузка информации о репозитории при изменении роута
- */
-watch(
-  () => currentRepoName.value,
-  async (repoName) => {
-    if (!repoName || !currentWorkspaceSlug.value) {
-      currentBranch.value = 'main';
-      lastCommit.value = null;
+          // Обработка ошибок доступа
+          if (error?.response?.status === 403) {
+            router.push('/access-denied');
+            return;
+          }
+          if (error?.response?.status === 404) {
+            router.push('/not-found');
+            return;
+          }
+
+          $q.notify({
+            type: 'negative',
+            message: 'Не удалось загрузить информацию о workspace',
+            caption: error?.response?.data?.message || error.message,
+          });
+          return;
+        }
+      }
+    } else {
+      console.error('[GitLayout] No workspace slug in route params');
+      router.push('/');
       return;
     }
 
-    // TODO: загрузка информации о репозитории через API
-    // Пример:
-    // try {
-    //   const repoInfo = await gitStore.fetchRepositoryInfo(
-    //     currentWorkspaceSlug.value,
-    //     repoName
-    //   );
-    //   currentBranch.value = repoInfo.default_branch;
-    //   lastCommit.value = repoInfo.last_commit;
-    // } catch (error) {
-    //   console.error('Failed to load repository info:', error);
-    // }
-  },
-  { immediate: true }
-);
+    // 3. Загрузка Git конфигурации (если еще не загружена)
+    if (!gitStore.configLoaded) {
+      try {
+        await gitStore.fetchGitConfig();
+        console.log('[GitLayout] Git config loaded successfully');
+      } catch (error) {
+        console.error('[GitLayout] Failed to load Git config:', error);
+        // Не блокируем UI из-за ошибки Git конфигурации
+        // Пользователь все равно может работать с Git модулем
+        $q.notify({
+          type: 'warning',
+          message: 'Не удалось загрузить конфигурацию Git',
+          caption: 'Некоторые функции могут быть недоступны',
+        });
+      }
+    }
 
-/**
- * Поиск по коду
- * TODO: реализовать поиск через API
- */
-watch(searchQuery, (newQuery) => {
-  if (newQuery.length >= 3) {
-    console.log('Search query:', newQuery);
-    // Здесь будет логика поиска через API
+    // 4. Установка темы (наследуется из user store)
+    setTheme();
+
+    console.log('[GitLayout] Initialization complete');
+  } catch (error) {
+    console.error('[GitLayout] Unexpected initialization error:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Ошибка инициализации Git модуля',
+      caption: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    // КРИТИЧЕСКИ ВАЖНО: явно сбросить loader в любом случае
+    // Это предотвращает бесконечную загрузку при любых ошибках
+    loaderStore.stopLoading();
   }
 });
+
+// Watch для обновления темы при изменении auth
+watch(
+  () => auth.value,
+  () => {
+    setTheme();
+  },
+  {
+    deep: true,
+  },
+);
+
+// Watch для обновления темы при изменении пользователя
+watch(
+  () => user.value,
+  () => {
+    setTheme();
+  },
+  {
+    deep: true,
+  },
+);
+
+// Watch для обновления workspaceInfo при изменении workspace в route
+watch(
+  () => route.params.workspace,
+  async (newWorkspaceSlug) => {
+    if (
+      newWorkspaceSlug &&
+      newWorkspaceSlug !== 'undefined' &&
+      newWorkspaceSlug !== workspaceInfo.value?.slug
+    ) {
+      currentWorkspaceSlug.value = newWorkspaceSlug as string;
+      try {
+        await workspaceStore.getWorkspaceInfo(newWorkspaceSlug as string);
+        console.log('[GitLayout] Workspace switched to:', newWorkspaceSlug);
+      } catch (error: any) {
+        console.error('[GitLayout] Failed to switch workspace:', error);
+        if (error?.response?.status === 403) {
+          router.push('/access-denied');
+        } else if (error?.response?.status === 404) {
+          router.push('/not-found');
+        }
+      }
+    }
+  },
+);
+
+useMeta({
+  title: 'АИПлан | Git Репозитории',
+});
+
+const isSnowEnable = computed(() => localStorage.getItem('snow') === 'enable');
+
+const toggleLeftDrawer = () => {
+  leftDrawerOpen.value = !leftDrawerOpen.value;
+};
 </script>
-
-<style lang="scss" scoped>
-.git-layout {
-  // Header стили
-  &__header {
-    background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
-    backdrop-filter: blur(10px);
-  }
-
-  &__toolbar {
-    min-height: 56px;
-    padding: 0 16px;
-  }
-
-  &__title {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  &__breadcrumbs {
-    margin-left: 24px;
-    flex-shrink: 0;
-  }
-
-  &__breadcrumb {
-    font-size: 13px;
-    opacity: 0.9;
-    transition: opacity 0.2s ease;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-
-  // Поиск
-  &__search {
-    transition: width 0.3s ease;
-
-    :deep(.q-field__control) {
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.15);
-      }
-    }
-
-    :deep(.q-field__native) {
-      color: white;
-
-      &::placeholder {
-        color: rgba(255, 255, 255, 0.6);
-      }
-    }
-  }
-
-  // Drawer
-  &__drawer {
-    background-color: var(--q-dark);
-
-    :deep(.q-scrollarea__content) {
-      padding: 8px;
-    }
-  }
-
-  // Page Container
-  &__page-container {
-    background-color: var(--q-page-background, #f5f5f5);
-  }
-
-  // Footer
-  &__footer {
-    background-color: #1e1e1e;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  &__footer-toolbar {
-    min-height: 40px;
-    padding: 0 16px;
-    font-family: 'Roboto Mono', 'Courier New', monospace;
-    font-size: 12px;
-  }
-
-  &__footer-text {
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 12px;
-    line-height: 1.4;
-  }
-
-  &__footer-commit {
-    max-width: 400px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__status-chip {
-    font-size: 11px;
-    height: 24px;
-  }
-}
-
-// Dark mode поддержка
-body.body--dark {
-  .git-layout {
-    &__page-container {
-      background-color: #121212;
-    }
-
-    &__drawer {
-      background-color: #1e1e1e;
-    }
-  }
-}
-
-// Fade transition
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-// Responsive adjustments
-@media (max-width: 600px) {
-  .git-layout {
-    &__toolbar {
-      padding: 0 8px;
-    }
-
-    &__title {
-      font-size: 16px;
-    }
-
-    &__search {
-      display: none;
-    }
-
-    &__footer-commit {
-      max-width: 200px;
-    }
-  }
-}
-
-@media (max-width: 1024px) {
-  .git-layout {
-    &__breadcrumbs {
-      display: none;
-    }
-  }
-}
-</style>
