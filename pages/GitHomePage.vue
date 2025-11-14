@@ -50,24 +50,6 @@
       </q-card-section>
 
       <q-separator />
-
-      <q-card-actions align="right">
-        <q-btn
-          flat
-          color="primary"
-          label="Назад"
-          icon="arrow_back"
-          @click="goBack"
-        />
-        <q-space />
-        <q-btn
-          color="primary"
-          label="Создать репозиторий"
-          icon="add"
-          :disable="!gitStore.gitEnabled"
-          @click="createRepository"
-        />
-      </q-card-actions>
     </q-card>
 
     <!-- Статистика (заглушка) -->
@@ -101,39 +83,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
 import { useGitStore } from 'src/stores/git-store';
 import { storeToRefs } from 'pinia';
 
-const router = useRouter();
-const $q = useQuasar();
 const workspaceStore = useWorkspaceStore();
 const gitStore = useGitStore();
 
 const { currentWorkspaceSlug } = storeToRefs(workspaceStore);
-
-/**
- * Возврат на предыдущую страницу
- */
-const goBack = () => {
-  router.back();
-};
-
-/**
- * Создание нового репозитория (заглушка)
- */
-const createRepository = () => {
-  $q.notify({
-    message: 'Функция создания репозитория в разработке',
-    color: 'info',
-    position: 'top',
-    timeout: 2000,
-    icon: 'info',
-  });
-};
 </script>
 
 <style scoped lang="scss">

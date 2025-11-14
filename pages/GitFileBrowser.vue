@@ -18,25 +18,14 @@
           Браузер файлов в разработке...
         </p>
       </q-card-section>
-
-      <q-card-actions>
-        <q-btn
-          flat
-          color="primary"
-          label="Назад"
-          icon="arrow_back"
-          @click="router.back()"
-        />
-      </q-card-actions>
     </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 
-const router = useRouter();
 const route = useRoute();
 
 const workspaceSlug = computed(() => route.params.workspace as string);

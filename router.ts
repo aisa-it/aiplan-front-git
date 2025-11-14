@@ -7,7 +7,8 @@ import { RouteRecordRaw } from 'vue-router';
  */
 const gitRoutes: RouteRecordRaw[] = [
   {
-    path: 'git',
+    path: '/:workspace/git',
+    component: () => import('./layouts/GitLayout.vue'),
     meta: {
       requiresAuth: true,
       extension: 'git',
