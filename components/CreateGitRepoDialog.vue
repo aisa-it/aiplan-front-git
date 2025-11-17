@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="showDialog" persistent>
-    <q-card style="min-width: 500px">
+    <q-card :style="$q.screen.lt.sm ? 'width: 95vw; max-width: 95vw' : 'min-width: 500px; max-width: 600px'">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Создать Git репозиторий</div>
         <q-space />
@@ -72,9 +72,9 @@
             <template v-slot:avatar>
               <q-icon name="info" />
             </template>
-            <div class="text-caption">
+            <div :class="$q.screen.lt.sm ? 'text-caption ssh-url-mobile' : 'text-caption'">
               После создания репозиторий будет доступен по адресу:<br />
-              <strong>ssh://git@{{ sshHost }}:{{ sshPort }}/{{ workspaceSlug }}/{{ formData.name || 'repo-name' }}.git</strong>
+              <strong class="ssh-url-text">ssh://git@{{ sshHost }}:{{ sshPort }}/{{ workspaceSlug }}/{{ formData.name || 'repo-name' }}.git</strong>
             </div>
           </q-banner>
         </q-card-section>
@@ -241,5 +241,15 @@ const onSubmit = async () => {
 </script>
 
 <style lang="scss" scoped>
-// Дополнительные стили при необходимости
+.ssh-url-text {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.ssh-url-mobile {
+  font-size: 11px;
+  line-height: 1.4;
+}
 </style>
