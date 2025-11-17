@@ -22,12 +22,18 @@
           @click="onCloneClick"
         >
           <q-menu v-if="!loadingConfig">
-            <q-list style="min-width: 450px">
+            <q-list :style="$q.screen.lt.sm ? 'min-width: 250px; max-width: 90vw' : 'min-width: 450px'">
               <!-- HTTP Clone URL -->
               <q-item clickable v-close-popup @click="copyToClipboard(httpCloneUrl)">
                 <q-item-section>
                   <q-item-label class="text-weight-medium">HTTP</q-item-label>
-                  <q-item-label caption class="text-grey-7 text-body2" style="white-space: normal; word-break: break-all;">
+                  <q-item-label
+                    caption
+                    class="text-grey-7 text-body2"
+                    :style="$q.screen.lt.sm
+                      ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
+                      : 'white-space: normal; word-break: break-all;'"
+                  >
                     {{ httpCloneUrl }}
                   </q-item-label>
                 </q-item-section>
@@ -50,7 +56,13 @@
                     SSH
                     <q-badge v-if="!gitConfigStore.sshEnabled" color="grey" label="Disabled" class="q-ml-sm" />
                   </q-item-label>
-                  <q-item-label caption class="text-grey-7 text-body2" style="white-space: normal; word-break: break-all;">
+                  <q-item-label
+                    caption
+                    class="text-grey-7 text-body2"
+                    :style="$q.screen.lt.sm
+                      ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
+                      : 'white-space: normal; word-break: break-all;'"
+                  >
                     {{ sshCloneUrl }}
                   </q-item-label>
                 </q-item-section>
@@ -243,25 +255,88 @@ const sshCloneUrl = computed(() => {
 
 /**
  * Копирует текст в буфер обмена
+ * Использует современный Clipboard API с fallback для старых браузеров
  */
 async function copyToClipboard(text: string): Promise<void> {
+  // Попытка использовать современный Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      $q.notify({
+        type: 'positive',
+        message: 'URL скопирован в буфер обмена',
+        icon: 'check_circle',
+        position: 'top',
+        timeout: 2000,
+      });
+      return;
+    } catch (error) {
+      console.error('[GitRepoPage] Clipboard API failed, trying fallback:', error);
+      // Fallback to execCommand if Clipboard API fails
+      fallbackCopyTextToClipboard(text);
+      return;
+    }
+  }
+
+  // Fallback для старых браузеров или HTTP context
+  fallbackCopyTextToClipboard(text);
+}
+
+/**
+ * Fallback метод для копирования текста через execCommand
+ * Используется для старых браузеров или когда Clipboard API недоступен
+ */
+function fallbackCopyTextToClipboard(text: string): void {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+
+  // Скрываем textarea за пределами viewport
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  textArea.style.top = '-999999px';
+  textArea.setAttribute('readonly', '');
+
+  document.body.appendChild(textArea);
+
   try {
-    await navigator.clipboard.writeText(text);
-    $q.notify({
-      type: 'positive',
-      message: 'URL скопирован в буфер обмена',
-      icon: 'check_circle',
-      position: 'top',
-      timeout: 2000,
-    });
+    // Для iOS требуется особая обработка
+    if (navigator.userAgent.match(/ipad|iphone/i)) {
+      const range = document.createRange();
+      range.selectNodeContents(textArea);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      textArea.setSelectionRange(0, 999999);
+    } else {
+      textArea.select();
+    }
+
+    const successful = document.execCommand('copy');
+
+    if (successful) {
+      $q.notify({
+        type: 'positive',
+        message: 'URL скопирован в буфер обмена',
+        icon: 'check_circle',
+        position: 'top',
+        timeout: 2000,
+      });
+    } else {
+      throw new Error('execCommand("copy") returned false');
+    }
   } catch (error) {
-    console.error('Failed to copy to clipboard:', error);
+    console.error('[GitRepoPage] Fallback copy failed:', error);
     $q.notify({
       type: 'negative',
       message: 'Не удалось скопировать в буфер обмена',
       icon: 'error',
       position: 'top',
+      timeout: 3000,
     });
+  } finally {
+    document.body.removeChild(textArea);
   }
 }
 
