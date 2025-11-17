@@ -42,7 +42,7 @@ import { ref, watch, computed, onBeforeMount } from 'vue';
 import { useUserStore } from 'src/stores/user-store';
 import { useUtilsStore } from 'src/stores/utils-store';
 import { useLoaderStore } from 'src/stores/loader-store';
-import { useGitConfigStore as useGitStore } from '../stores';
+import { useGitConfigStore as useGitStore, useGitRepositoryStore } from '../stores';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
 
 // components
@@ -59,6 +59,7 @@ const userStore = useUserStore();
 const utilsStore = useUtilsStore();
 const loaderStore = useLoaderStore();
 const gitStore = useGitStore();
+const gitRepoStore = useGitRepositoryStore();
 const workspaceStore = useWorkspaceStore();
 
 // store to refs
@@ -175,6 +176,20 @@ onBeforeMount(async () => {
       }
     }
 
+    // 3.5. КРИТИЧЕСКИ ВАЖНО: Загрузка списка репозиториев
+    // Это решает проблему с пустым списком репозиториев при прямом переходе по URL
+    // например при переходе на /:workspace/git/:repoName
+    if (gitStore.gitEnabled && workspaceSlug) {
+      try {
+        await gitRepoStore.fetchRepositories(workspaceSlug);
+        console.log('[GitLayout] Repositories loaded:', gitRepoStore.totalRepositories);
+      } catch (error) {
+        console.error('[GitLayout] Failed to load repositories:', error);
+        // Не блокируем UI из-за ошибки загрузки репозиториев
+        // Пользователь все равно может работать с Git модулем
+      }
+    }
+
     // 4. Установка темы (наследуется из user store)
     setTheme();
 
@@ -228,6 +243,12 @@ watch(
       try {
         await workspaceStore.getWorkspaceInfo(newWorkspaceSlug as string);
         console.log('[GitLayout] Workspace switched to:', newWorkspaceSlug);
+
+        // ВАЖНО: Перезагрузка списка репозиториев при смене workspace
+        if (gitStore.gitEnabled) {
+          await gitRepoStore.fetchRepositories(newWorkspaceSlug as string);
+          console.log('[GitLayout] Repositories reloaded for workspace:', newWorkspaceSlug);
+        }
       } catch (error: any) {
         console.error('[GitLayout] Failed to switch workspace:', error);
         if (error?.response?.status === 403) {
