@@ -93,8 +93,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
-import { useGitStore } from 'src/stores/git-store';
-import { useGitRepositoryStore } from '../stores/git-repository-store';
+import { useGitConfigStore as useGitStore, useGitRepositoryStore } from '../stores';
 import { storeToRefs } from 'pinia';
 import { useQuasar } from 'quasar';
 

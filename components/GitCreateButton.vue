@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { Screen } from 'quasar';
 import { ref, computed } from 'vue';
-import { useGitStore } from 'src/stores/git-store';
+import { useGitConfigStore as useGitStore } from '../stores';
 import AddIcon from 'src/components/icons/AddIcon.vue';
 import HintTooltip from 'src/components/HintTooltip.vue';
 import CreateGitRepoDialog from './CreateGitRepoDialog.vue';

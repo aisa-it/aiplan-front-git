@@ -42,7 +42,7 @@ import { ref, watch, computed, onBeforeMount } from 'vue';
 import { useUserStore } from 'src/stores/user-store';
 import { useUtilsStore } from 'src/stores/utils-store';
 import { useLoaderStore } from 'src/stores/loader-store';
-import { useGitStore } from 'src/stores/git-store';
+import { useGitConfigStore as useGitStore } from '../stores';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
 
 // components

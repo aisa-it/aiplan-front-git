@@ -104,7 +104,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import { useGitRepositoryStore } from '../stores/git-repository-store';
+import { useGitRepositoryStore } from '../stores';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
 import type { CreateRepositoryRequest } from '../types';
 

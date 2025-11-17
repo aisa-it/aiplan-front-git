@@ -4,6 +4,7 @@ import type {
   GitRepositoryLight,
   GitRepository,
   CreateRepositoryRequest,
+  GitRepositoryInfo,
 } from '../types';
 import { useAiplanStore } from 'src/stores/aiplan-store';
 
@@ -23,6 +24,12 @@ export const useGitRepositoryStore = defineStore('git-repository', () => {
 
   /** Флаг загрузки списка репозиториев */
   const loadingRepositories = ref(false);
+
+  /** Информация о текущем репозитории */
+  const currentRepoInfo = ref<GitRepositoryInfo | null>(null);
+
+  /** Флаг загрузки информации о репозитории */
+  const loadingRepoInfo = ref(false);
 
   /**
    * Загружает список репозиториев для workspace
@@ -136,12 +143,58 @@ export const useGitRepositoryStore = defineStore('git-repository', () => {
   }
 
   /**
+   * Загружает информацию о репозитории
+   *
+   * @param workspaceSlug - slug workspace
+   * @param repositoryName - имя репозитория
+   * @returns Promise<GitRepositoryInfo>
+   */
+  async function fetchRepoInfo(
+    workspaceSlug: string,
+    repositoryName: string,
+  ): Promise<GitRepositoryInfo> {
+    if (!workspaceSlug || !repositoryName) {
+      throw new Error('Workspace slug and repository name are required');
+    }
+
+    loadingRepoInfo.value = true;
+
+    try {
+      const aiplanStore = useAiplanStore();
+      const api = aiplanStore.api;
+
+      const response = await api.get<GitRepositoryInfo>(
+        `/api/auth/git/${workspaceSlug}/repositories/${repositoryName}/info`,
+      );
+
+      currentRepoInfo.value = response.data;
+
+      console.log('[GitRepositoryStore] Repository info loaded:', {
+        workspace: workspaceSlug,
+        repo: repositoryName,
+        branches: response.data.branches_count,
+        commits: response.data.commits_count,
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('[GitRepositoryStore] Failed to fetch repository info:', error);
+      currentRepoInfo.value = null;
+      throw error;
+    } finally {
+      loadingRepoInfo.value = false;
+    }
+  }
+
+  /**
    * Сбрасывает состояние store (для тестов или смены workspace)
    */
   function reset(): void {
     repositories.value = [];
     totalRepositories.value = 0;
     loadingRepositories.value = false;
+    currentRepoInfo.value = null;
+    loadingRepoInfo.value = false;
   }
 
   return {
@@ -149,11 +202,14 @@ export const useGitRepositoryStore = defineStore('git-repository', () => {
     repositories,
     totalRepositories,
     loadingRepositories,
+    currentRepoInfo,
+    loadingRepoInfo,
 
     // Actions
     fetchRepositories,
     createRepository,
     deleteRepository,
+    fetchRepoInfo,
     reset,
   };
 });

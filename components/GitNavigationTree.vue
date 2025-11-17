@@ -166,7 +166,7 @@ import { useQuasar } from 'quasar';
 
 // Stores
 import { useAiplanStore } from 'src/stores/aiplan-store';
-import { useGitStore } from 'src/stores/git-store';
+import { useGitConfigStore as useGitStore } from '../stores';
 
 // Types
 import type { GitRepositoryLight } from '../types';
@@ -307,6 +307,9 @@ const createRepository = async () => {
       icon: 'check_circle',
     });
 
+    // Сохраняем имя репозитория до сброса формы
+    const createdRepoName = newRepoName.value;
+
     // Закрываем диалог
     showCreateRepoDialog.value = false;
 
@@ -319,7 +322,7 @@ const createRepository = async () => {
     await loadRepositories();
 
     // Навигируем к новому репозиторию
-    navigateToRepo(newRepoName.value);
+    navigateToRepo(createdRepoName);
   } catch (error: any) {
     console.error('[GitNavigationTree] Failed to create repository:', error);
 

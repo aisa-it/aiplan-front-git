@@ -83,8 +83,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { useGitStore } from 'src/stores/git-store';
-import { useGitRepositoryStore } from '../stores/git-repository-store';
+import { useGitConfigStore as useGitStore, useGitRepositoryStore } from '../stores';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
 import GitIcon from 'src/components/icons/GitIcon.vue';
 import CreateGitRepoDialog from './CreateGitRepoDialog.vue';
@@ -122,9 +121,9 @@ const goToRepository = (repoName: string) => {
     return;
   }
 
-  // TODO: Определить правильный роут для страницы репозитория
-  // Предполагаемый роут: /{workspace-slug}/git/repositories/{repo-name}
-  router.push(`/${currentWorkspaceSlug.value}/git/repositories/${repoName}`);
+  // Переход на страницу репозитория
+  // Правильный роут: /{workspace-slug}/git/{repo-name}
+  router.push(`/${currentWorkspaceSlug.value}/git/${repoName}`);
 };
 
 /**
