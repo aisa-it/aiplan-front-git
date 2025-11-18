@@ -101,6 +101,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
 import { useGitRepositoryStore } from '../stores/git-repository-store';
 import type { GitTreeEntry, GitBranch } from '../types';
 import { formatBytes } from '../utils/format';
@@ -114,11 +115,11 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'file-selected', path: string, ref: string): void;
   (e: 'directory-changed', path: string): void;
 }>();
 
 const $q = useQuasar();
+const router = useRouter();
 const repoStore = useGitRepositoryStore();
 
 const currentPath = ref('');
@@ -280,12 +281,17 @@ function onEntryClick(entry: GitTreeEntry): void {
       : entry.name;
     navigateToPath(newPath);
   } else {
-    // Выбор файла
+    // Открытие файла на отдельной странице
     selectedFile.value = entry.name;
     const filePath = currentPath.value
       ? `${currentPath.value}/${entry.name}`
       : entry.name;
-    emit('file-selected', filePath, selectedBranch.value);
+
+    // Навигация на страницу просмотра файла
+    // РЕШЕНИЕ: Кодируем путь в base64 чтобы избежать проблем с точками и спецсимволами
+    // Vue Router теряет точки даже в query parameters, поэтому используем base64
+    const encodedPath = btoa(filePath);
+    router.push(`/${props.workspaceSlug}/git/${props.repoName}/blob/${selectedBranch.value || 'HEAD'}/${encodedPath}`);
   }
 }
 

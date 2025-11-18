@@ -33,12 +33,12 @@ const gitRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        path: ':repoName/tree/:ref?/*',
-        name: 'git-file-browser',
-        component: () => import('./pages/GitFileBrowser.vue'),
+        path: ':repoName/blob/:ref/:encodedPath',
+        name: 'git-file-view',
+        component: () => import('./pages/GitFilePage.vue'),
         meta: {
-          title: 'Browse Files',
-          breadcrumb: 'Files',
+          title: 'View File',
+          breadcrumb: 'File',
         },
       },
     ],

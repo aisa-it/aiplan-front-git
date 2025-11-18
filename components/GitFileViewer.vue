@@ -98,7 +98,7 @@ interface Props {
   workspaceSlug: string;
   repoName: string;
   filePath: string;
-  ref?: string;
+  gitRef?: string;
   showLineNumbers?: boolean;
 }
 
@@ -197,7 +197,7 @@ async function loadFile(): Promise<void> {
       props.workspaceSlug,
       props.repoName,
       props.filePath,
-      props.ref,
+      props.gitRef,
     );
   } catch (err) {
     console.error('[GitFileViewer] Failed to load file:', err);
@@ -214,7 +214,7 @@ async function loadFile(): Promise<void> {
  * Следим за изменением пути файла и перезагружаем
  */
 watch(
-  () => [props.workspaceSlug, props.repoName, props.filePath, props.ref],
+  () => [props.workspaceSlug, props.repoName, props.filePath, props.gitRef],
   () => {
     if (props.filePath) {
       loadFile();

@@ -209,20 +209,8 @@
           :workspace-slug="workspaceSlug"
           :repo-name="repoName"
           :initial-branch="repoStore.currentRepoInfo?.default_branch"
-          @file-selected="onFileSelected"
         />
       </q-card-section>
-    </q-card>
-
-    <!-- File Viewer -->
-    <q-card v-if="selectedFile" flat bordered>
-      <GitFileViewer
-        :workspace-slug="workspaceSlug"
-        :repo-name="repoName"
-        :file-path="selectedFile.path"
-        :ref="selectedFile.ref"
-        @close="selectedFile = null"
-      />
     </q-card>
   </q-page>
 </template>
@@ -235,7 +223,6 @@ import { useGitRepositoryStore } from '../stores/git-repository-store';
 import { useGitConfigStore } from '../stores/git-config-store';
 import { formatBytes, formatRelativeTime, shortenSha } from '../utils/format';
 import GitFileBrowser from '../components/GitFileBrowser.vue';
-import GitFileViewer from '../components/GitFileViewer.vue';
 
 const route = useRoute();
 const $q = useQuasar();
@@ -246,7 +233,6 @@ const workspaceSlug = computed(() => route.params.workspace as string);
 const repoName = computed(() => route.params.repoName as string);
 
 const loadingConfig = ref(false);
-const selectedFile = ref<{ path: string; ref: string } | null>(null);
 
 /**
  * HTTP clone URL
@@ -372,13 +358,6 @@ async function onCloneClick(): Promise<void> {
       loadingConfig.value = false;
     }
   }
-}
-
-/**
- * Обработчик выбора файла в браузере
- */
-function onFileSelected(path: string, ref: string): void {
-  selectedFile.value = { path, ref };
 }
 
 /**
