@@ -1,202 +1,121 @@
 <template>
   <q-page class="git-repo-page q-pa-md">
-    <!-- Header with Repository Name and Clone Button -->
-    <div class="row items-center justify-between q-mb-md repo-header">
-      <div class="col-auto">
-        <div class="text-h6 q-mb-xs">
-          <q-icon name="folder" size="sm" class="q-mr-sm" />
-          {{ repoName }}
-        </div>
-        <div class="text-body2 text-grey-7">
-          Workspace: {{ workspaceSlug }}
-        </div>
-      </div>
-
-      <div class="col-auto">
-        <!-- Clone Button with Dropdown -->
-        <q-btn
-          color="primary"
-          icon="content_copy"
-          label="Clone"
-          :loading="loadingConfig"
-          @click="onCloneClick"
-        >
-          <q-menu v-if="!loadingConfig">
-            <q-list :style="$q.screen.lt.sm ? 'min-width: 250px; max-width: 90vw' : 'min-width: 450px'">
-              <!-- HTTP Clone URL -->
-              <q-item clickable v-close-popup @click="copyToClipboard(httpCloneUrl)">
-                <q-item-section>
-                  <q-item-label class="text-weight-medium">HTTP</q-item-label>
-                  <q-item-label
-                    caption
-                    class="text-grey-7 text-body2"
-                    :style="$q.screen.lt.sm
-                      ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
-                      : 'white-space: normal; word-break: break-all;'"
-                  >
-                    {{ httpCloneUrl }}
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" size="sm" color="primary" />
-                </q-item-section>
-              </q-item>
-
-              <q-separator />
-
-              <!-- SSH Clone URL -->
-              <q-item
-                clickable
-                v-close-popup
-                @click="copyToClipboard(sshCloneUrl)"
-                :disable="!gitConfigStore.sshEnabled"
-              >
-                <q-item-section>
-                  <q-item-label class="text-weight-medium">
-                    SSH
-                    <q-badge v-if="!gitConfigStore.sshEnabled" color="grey" label="Disabled" class="q-ml-sm" />
-                  </q-item-label>
-                  <q-item-label
-                    caption
-                    class="text-grey-7 text-body2"
-                    :style="$q.screen.lt.sm
-                      ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
-                      : 'white-space: normal; word-break: break-all;'"
-                  >
-                    {{ sshCloneUrl }}
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" size="sm" color="primary" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
-        </q-btn>
-      </div>
-    </div>
-
-    <!-- Repository Information Card -->
-    <q-card flat bordered class="q-mb-md repo-info-card">
-      <q-card-section class="q-pb-none q-pt-sm q-pl-md q-pr-md">
-        <div class="text-subtitle1">
-          <q-icon name="info" class="q-mr-sm" />
-          Информация о репозитории
-        </div>
-      </q-card-section>
-
-      <!-- Loading State -->
-      <q-card-section v-if="repoStore.loadingRepoInfo" class="q-pt-sm q-pb-sm">
-        <div class="row justify-center">
-          <q-spinner color="primary" size="lg" />
-        </div>
-      </q-card-section>
-
-      <!-- Error State -->
-      <q-card-section v-else-if="!repoStore.currentRepoInfo">
-        <q-banner class="bg-negative text-white" rounded>
-          <template v-slot:avatar>
-            <q-icon name="error" color="white" />
-          </template>
-          Не удалось загрузить информацию о репозитории
-        </q-banner>
-      </q-card-section>
-
-      <!-- Repository Info -->
-      <q-list v-else separator dense class="repo-info-list">
-        <!-- Default Branch -->
-        <q-item>
-          <q-item-section avatar>
-            <q-icon name="fork_right" color="primary" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Основная ветка</q-item-label>
-            <q-item-label caption class="text-body2">
-              {{ repoStore.currentRepoInfo.default_branch }}
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- Branches Count -->
-        <q-item>
-          <q-item-section avatar>
-            <q-icon name="account_tree" color="primary" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Количество веток</q-item-label>
-            <q-item-label caption class="text-body2">
-              {{ repoStore.currentRepoInfo.branches_count }}
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- Commits Count -->
-        <q-item>
-          <q-item-section avatar>
-            <q-icon name="commit" color="primary" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Количество коммитов</q-item-label>
-            <q-item-label caption class="text-body2">
-              {{ repoStore.currentRepoInfo.commits_count }}
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- Repository Size -->
-        <q-item>
-          <q-item-section avatar>
-            <q-icon name="storage" color="primary" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Размер репозитория</q-item-label>
-            <q-item-label caption class="text-body2">
-              {{ formatBytes(repoStore.currentRepoInfo.size) }}
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- Last Commit -->
-        <q-item v-if="repoStore.currentRepoInfo.last_commit">
-          <q-item-section avatar>
-            <q-icon name="history" color="primary" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Последний коммит</q-item-label>
-            <q-item-label caption class="text-body2">
-              <div class="q-mb-xs">
-                <q-chip
-                  size="sm"
-                  dense
-                  color="grey-3"
-                  text-color="grey-9"
-                  icon="tag"
-                >
-                  {{ shortenSha(repoStore.currentRepoInfo.last_commit.sha) }}
-                </q-chip>
-              </div>
-              <div class="q-mb-xs">
-                {{ repoStore.currentRepoInfo.last_commit.message }}
-              </div>
-              <div class="text-grey-6">
-                <q-icon name="person" size="xs" class="q-mr-xs" />
-                {{ repoStore.currentRepoInfo.last_commit.author.name }}
-                <span class="q-mx-sm">•</span>
-                <q-icon name="schedule" size="xs" class="q-mr-xs" />
-                {{ formatRelativeTime(repoStore.currentRepoInfo.last_commit.author.date) }}
-              </div>
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-      </q-list>
-    </q-card>
-
-    <!-- File Browser -->
+    <!-- File Browser with inline stats -->
     <q-card flat bordered class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">
-          <q-icon name="folder_open" class="q-mr-sm" />
-          Файлы
+      <q-card-section class="q-pb-sm q-pt-sm">
+        <div class="row items-center justify-between flex-wrap gap-sm">
+          <div class="row items-center">
+            <q-icon name="folder_open" class="q-mr-sm" />
+            <span class="text-subtitle1">Файлы</span>
+          </div>
+          <div class="row items-center flex-wrap stats-actions">
+            <div v-if="repoStore.currentRepoInfo" class="row items-center stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Веток:</span>
+                <span class="stat-value">{{ repoStore.currentRepoInfo.branches_count }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Комитов:</span>
+                <span class="stat-value">{{ repoStore.currentRepoInfo.commits_count }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Размер:</span>
+                <span class="stat-value">{{ formatBytes(repoStore.currentRepoInfo.size) }}</span>
+              </div>
+              <div
+                class="stat-item"
+                v-if="repoStore.currentRepoInfo.last_commit"
+              >
+                <span class="stat-label">Последний:</span>
+                <span class="stat-value">
+                  {{ shortenSha(repoStore.currentRepoInfo.last_commit.sha) }},
+                  {{ formatRelativeTime(repoStore.currentRepoInfo.last_commit.author.date) }}
+                </span>
+              </div>
+            </div>
+
+            <q-btn
+              flat
+              dense
+              no-caps
+              class="primary-btn-sm clone-btn q-ml-sm q-mt-xs"
+              :loading="loadingConfig"
+              aria-haspopup="menu"
+              @click="onCloneClick"
+            >
+              <q-icon name="content_copy" size="18px" class="q-mr-xs" />
+              <span>Clone</span>
+              <q-menu
+                v-if="!loadingConfig"
+                ref="cloneMenuRef"
+                anchor="bottom right"
+                self="top right"
+                @show="ensureCloneReady"
+              >
+                <q-list :style="$q.screen.lt.sm ? 'min-width: 250px; max-width: 90vw' : 'min-width: 450px'">
+                  <q-item>
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">HTTP</q-item-label>
+                      <q-item-label
+                        caption
+                        class="text-grey-7 text-body2"
+                        :style="$q.screen.lt.sm
+                          ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
+                          : 'white-space: normal; word-break: break-all;'"
+                    >
+                      {{ httpCloneUrl }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      icon="content_copy"
+                      color="primary"
+                      @click.stop="handleCopyLink(httpCloneUrl)"
+                    >
+                      <q-tooltip>Скопировать HTTP URL</q-tooltip>
+                    </q-btn>
+                  </q-item-section>
+                  </q-item>
+
+                  <q-separator />
+
+                  <q-item :disable="!gitConfigStore.sshEnabled">
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">
+                        SSH
+                        <q-badge v-if="!gitConfigStore.sshEnabled" color="grey" label="Disabled" class="q-ml-sm" />
+                      </q-item-label>
+                      <q-item-label
+                        caption
+                        class="text-grey-7 text-body2"
+                        :style="$q.screen.lt.sm
+                          ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
+                          : 'white-space: normal; word-break: break-all;'"
+                    >
+                      {{ sshCloneUrl }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      icon="content_copy"
+                      color="primary"
+                      :disable="!gitConfigStore.sshEnabled"
+                      @click.stop="handleCopyLink(sshCloneUrl)"
+                    >
+                      <q-tooltip>Скопировать SSH URL</q-tooltip>
+                    </q-btn>
+                  </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </div>
         </div>
       </q-card-section>
 
@@ -231,6 +150,7 @@ const workspaceSlug = computed(() => route.params.workspace as string);
 const repoName = computed(() => route.params.repoName as string);
 
 const loadingConfig = ref(false);
+const cloneMenuRef = ref<any>(null);
 
 /**
  * HTTP clone URL
@@ -281,6 +201,14 @@ async function copyToClipboard(text: string): Promise<void> {
 
   // Fallback для старых браузеров или HTTP context
   fallbackCopyTextToClipboard(text);
+}
+
+/**
+ * Копирует ссылку и закрывает меню
+ */
+async function handleCopyLink(url: string): Promise<void> {
+  await copyToClipboard(url);
+  cloneMenuRef.value?.hide();
 }
 
 /**
@@ -345,7 +273,7 @@ function fallbackCopyTextToClipboard(text: string): void {
  * Обработчик клика на кнопку Clone
  * Загружает SSH конфигурацию если еще не загружена
  */
-async function onCloneClick(): Promise<void> {
+async function ensureCloneReady(): Promise<void> {
   if (!gitConfigStore.sshConfigLoaded) {
     loadingConfig.value = true;
     try {
@@ -356,6 +284,10 @@ async function onCloneClick(): Promise<void> {
       loadingConfig.value = false;
     }
   }
+}
+
+async function onCloneClick(): Promise<void> {
+  await ensureCloneReady();
 }
 
 /**
@@ -373,18 +305,21 @@ onMounted(async () => {
       position: 'top',
     });
   }
+
+  // Предзагружаем SSH конфиг, чтобы меню Clone открывалось с первого клика
+  if (!gitConfigStore.sshConfigLoaded) {
+    try {
+      await gitConfigStore.fetchSSHConfig();
+    } catch (error) {
+      console.error('Failed to preload SSH config:', error);
+    }
+  }
 });
 </script>
 
 <style lang="scss" scoped>
 .git-repo-page {
   // Стили для страницы репозитория
-}
-
-.repo-header {
-  .q-btn {
-    min-height: 36px;
-  }
 }
 
 .repo-info-card {
@@ -405,5 +340,36 @@ onMounted(async () => {
 .repo-info-list {
   padding-top: 4px;
   padding-bottom: 4px;
+}
+
+.stats-row {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+
+  .stat-label {
+    color: #6b7280;
+  }
+
+.stat-value {
+    color: #111827;
+    font-weight: 600;
+  }
+}
+
+.stats-actions {
+  gap: 12px;
+}
+
+.clone-btn {
+  border-radius: 12px;
+  padding: 0 18px;
+  color: #fff;
 }
 </style>
