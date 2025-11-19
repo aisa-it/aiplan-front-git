@@ -50,7 +50,11 @@
           class="git-repo-item"
         >
           <q-item-section avatar>
-            <GitIcon :width="20" :height="20" color="#9e9e9e" />
+            <GitIcon
+              :width="20"
+              :height="20"
+              :color="isActive(repo.name) ? activeColor : '#9e9e9e'"
+            />
           </q-item-section>
 
           <q-item-section>
@@ -100,6 +104,7 @@ const { currentWorkspaceSlug } = storeToRefs(workspaceStore);
 
 // State
 const showCreateDialog = ref(false);
+const activeColor = '#3f75ff';
 
 // Computed
 /**
@@ -188,8 +193,9 @@ watch(currentWorkspaceSlug, () => {
 }
 
 .repositories-title {
-  font-weight: 500;
+  font-weight: 900;
   font-size: 14px;
+  margin-left: 28px;
 }
 
 // Кнопка создания репозитория
