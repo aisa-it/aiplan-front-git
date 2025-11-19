@@ -32,15 +32,16 @@ const gitRoutes: RouteRecordRaw[] = [
           breadcrumb: 'Repository',
         },
       },
-      {
-        path: ':repoName/blob/:ref/:encodedPath',
-        name: 'git-file-view',
-        component: () => import('./pages/GitFilePage.vue'),
-        meta: {
-          title: 'View File',
-          breadcrumb: 'File',
-        },
-      },
+      // NOTE: Роут закомментирован - файлы теперь открываются в dialog внутри GitRepoPage
+      // {
+      //   path: ':repoName/blob/:ref/:encodedPath',
+      //   name: 'git-file-view',
+      //   component: () => import('./pages/GitFilePage.vue'),
+      //   meta: {
+      //     title: 'View File',
+      //     breadcrumb: 'File',
+      //   },
+      // },
     ],
   },
 ];

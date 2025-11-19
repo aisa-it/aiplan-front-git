@@ -1,7 +1,7 @@
 <template>
   <div class="git-file-viewer">
     <!-- File Header -->
-    <q-card-section v-if="filePath" class="bg-grey-2">
+    <div v-if="filePath" class="file-header q-pa-md bg-grey-2">
       <div class="row items-center">
         <div class="col">
           <div class="text-body1 text-weight-medium">
@@ -15,17 +15,8 @@
             </span>
           </div>
         </div>
-        <div class="col-auto">
-          <q-btn
-            flat
-            dense
-            icon="close"
-            @click="emit('close')"
-            aria-label="Закрыть"
-          />
-        </div>
       </div>
-    </q-card-section>
+    </div>
 
     <q-separator v-if="filePath" />
 
@@ -229,6 +220,10 @@ watch(
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.file-header {
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .code-viewer-container {

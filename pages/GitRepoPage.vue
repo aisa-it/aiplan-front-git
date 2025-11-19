@@ -1,12 +1,25 @@
 <template>
   <q-page class="git-repo-page q-pa-md">
-    <!-- File Browser with inline stats -->
+    <!-- Main Content Area: File Browser OR File Viewer -->
     <q-card flat bordered class="q-mb-md">
+      <!-- Header Section with Stats and Actions -->
       <q-card-section class="q-pb-sm q-pt-sm">
         <div class="row items-center justify-between flex-wrap gap-sm">
           <div class="row items-center">
-            <q-icon name="folder_open" class="q-mr-sm" />
-            <span class="text-subtitle1">Файлы</span>
+            <q-icon :name="selectedFile ? 'insert_drive_file' : 'folder_open'" class="q-mr-sm" />
+            <span class="text-subtitle1">{{ selectedFile ? selectedFile.name : 'Файлы' }}</span>
+
+            <!-- Back Button (only when viewing file) -->
+            <q-btn
+              v-if="selectedFile"
+              flat
+              dense
+              no-caps
+              icon="arrow_back"
+              label="Назад к файлам"
+              class="q-ml-md"
+              @click="closeFileViewer"
+            />
           </div>
           <div class="row items-center flex-wrap stats-actions">
             <div v-if="repoStore.currentRepoInfo" class="row items-center stats-row">
@@ -121,12 +134,30 @@
 
       <q-separator />
 
+      <!-- Content Section: File Browser OR File Viewer -->
       <q-card-section class="q-pa-md">
-        <GitFileBrowser
-          :workspace-slug="workspaceSlug"
-          :repo-name="repoName"
-          :initial-branch="repoStore.currentRepoInfo?.default_branch"
-        />
+        <transition name="fade-slide" mode="out-in">
+          <!-- File Browser (default view) -->
+          <GitFileBrowser
+            v-if="!selectedFile"
+            key="browser"
+            :workspace-slug="workspaceSlug"
+            :repo-name="repoName"
+            :initial-branch="repoStore.currentRepoInfo?.default_branch"
+            @file-selected="onFileSelected"
+          />
+
+          <!-- File Viewer (when file is selected) -->
+          <GitFileViewer
+            v-else
+            key="viewer"
+            :workspace-slug="workspaceSlug"
+            :repo-name="repoName"
+            :file-path="selectedFile.path"
+            :git-ref="selectedFile.branch"
+            @close="closeFileViewer"
+          />
+        </transition>
       </q-card-section>
     </q-card>
   </q-page>
@@ -140,6 +171,7 @@ import { useGitRepositoryStore } from '../stores/git-repository-store';
 import { useGitConfigStore } from '../stores/git-config-store';
 import { formatBytes, formatRelativeTime, shortenSha } from '../utils/format';
 import GitFileBrowser from '../components/GitFileBrowser.vue';
+import GitFileViewer from '../components/GitFileViewer.vue';
 
 const route = useRoute();
 const $q = useQuasar();
@@ -151,6 +183,9 @@ const repoName = computed(() => route.params.repoName as string);
 
 const loadingConfig = ref(false);
 const cloneMenuRef = ref<any>(null);
+
+// Состояние для просмотра файлов (используется для условного рендеринга)
+const selectedFile = ref<{ path: string; branch: string; name: string } | null>(null);
 
 /**
  * HTTP clone URL
@@ -291,6 +326,21 @@ async function onCloneClick(): Promise<void> {
 }
 
 /**
+ * Обработчик выбора файла из GitFileBrowser
+ * Переключает вид с браузера на просмотр файла
+ */
+function onFileSelected(file: { path: string; branch: string; name: string }): void {
+  selectedFile.value = file;
+}
+
+/**
+ * Возврат к списку файлов (закрыть просмотр файла)
+ */
+function closeFileViewer(): void {
+  selectedFile.value = null;
+}
+
+/**
  * Загружает информацию о репозитории при монтировании компонента
  */
 onMounted(async () => {
@@ -371,5 +421,32 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 0 18px;
   color: #fff;
+}
+
+// Transition анимации для переключения между Browser и Viewer
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+// Responsive дизайн для мобильных устройств
+@media (max-width: 600px) {
+  .stats-row {
+    display: none; // Скрываем статистику на мобильных для экономии места
+  }
+
+  .stat-item {
+    font-size: 12px;
+  }
 }
 </style>
