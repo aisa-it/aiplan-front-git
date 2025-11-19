@@ -103,6 +103,7 @@ const { workspaceInfo } = storeToRefs(workspaceStore);
 // Vars
 const route = useRoute();
 const router = useRouter();
+const repoName = computed(() => (route.params.repoName as string) || (route.params.repository as string));
 
 /**
  * Формирование breadcrumbs для Git модуля
@@ -120,34 +121,43 @@ const breadCrumbsHistory = computed(() => {
     type: 'workspace',
   };
 
-  // Git breadcrumb (всегда второй для Git модуля)
-  existPath[1] = {
-    name: 'Git',
-    url: `/${workspaceInfo.value?.slug}/git`,
-    type: 'git',
-  };
-
-  // Repository breadcrumb (если находимся в репозитории)
-  const repoName = route.params.repository as string;
-  if (repoName) {
-    existPath[2] = {
-      name: repoName,
-      url: `/${workspaceInfo.value?.slug}/git/${repoName}`,
+  // В режиме списка — показываем Git; в репозитории — сразу имя репо
+  if (repoName.value) {
+    existPath[1] = {
+      name: repoName.value,
+      url: `/${workspaceInfo.value?.slug}/git/${repoName.value}`,
       type: 'repository',
     };
+  } else {
+    existPath[1] = {
+      name: 'Git',
+      url: `/${workspaceInfo.value?.slug}/git`,
+      type: 'git',
+    };
+  }
 
-    // File path breadcrumb (если просматриваем файл/директорию)
-    const filePath = route.query.path as string;
-    if (filePath && filePath !== '/') {
-      // Показываем только последнюю часть пути
-      const pathParts = filePath.split('/').filter(Boolean);
-      const lastPart = pathParts[pathParts.length - 1];
+  // File path breadcrumb (если просматриваем файл/директорию)
+  const queryPath = route.query.path as string;
+  const encodedPath = route.params.encodedPath as string;
+  const decodedPath =
+    encodedPath && typeof encodedPath === 'string'
+      ? (() => {
+          try {
+            return atob(encodedPath);
+          } catch (e) {
+            return '';
+          }
+        })()
+      : queryPath;
 
-      existPath[3] = {
-        name: lastPart,
-        type: 'file',
-      };
-    }
+  if (repoName.value && decodedPath && decodedPath !== '/') {
+    const pathParts = decodedPath.split('/').filter(Boolean);
+    const lastPart = pathParts[pathParts.length - 1];
+
+    existPath[2] = {
+      name: lastPart,
+      type: 'file',
+    };
   }
 
   return existPath;

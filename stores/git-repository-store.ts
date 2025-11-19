@@ -216,6 +216,7 @@ export const useGitRepositoryStore = defineStore('git-repository', () => {
     repositoryName: string,
     ref?: string,
     path?: string,
+    skipFallback = false,
   ): Promise<GitTree> {
     if (!workspaceSlug || !repositoryName) {
       throw new Error('Workspace slug and repository name are required');
@@ -223,12 +224,15 @@ export const useGitRepositoryStore = defineStore('git-repository', () => {
 
     loadingTree.value = true;
 
+    // fallback: если ref не указан, пробуем дефолтную ветку из currentRepoInfo
+    const refToUse = ref || currentRepoInfo.value?.default_branch || undefined;
+
     try {
       const aiplanStore = useAiplanStore();
       const api = aiplanStore.api;
 
       const params = new URLSearchParams();
-      if (ref) params.append('ref', ref);
+      if (refToUse) params.append('ref', refToUse);
       if (path) params.append('path', path);
 
       const url = `/api/auth/git/${workspaceSlug}/repositories/${repositoryName}/tree${
@@ -248,8 +252,51 @@ export const useGitRepositoryStore = defineStore('git-repository', () => {
       });
 
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail || error?.response?.data?.message;
+
       console.error('[GitRepositoryStore] Failed to fetch tree:', error);
+
+      // Если ветка не найдена, пытаемся еще раз с дефолтной веткой (если другая)
+      if (!skipFallback && status === 500) {
+        const defaultBranch = currentRepoInfo.value?.default_branch;
+
+        // Попытка №1: дефолтная ветка, если она отличается от запрошенной
+        if (defaultBranch && refToUse && refToUse !== defaultBranch) {
+          console.warn(
+            `[GitRepositoryStore] Retry tree with default branch '${defaultBranch}' instead of '${refToUse}'`,
+          );
+          try {
+            return await fetchTree(
+              workspaceSlug,
+              repositoryName,
+              defaultBranch,
+              path,
+              true,
+            );
+          } catch (retryError) {
+            console.error('[GitRepositoryStore] Retry (default branch) failed:', retryError);
+          }
+        }
+
+        // Попытка №2: без указания ветки (пусть сервер выберет ветку по умолчанию)
+        if (refToUse) {
+          console.warn('[GitRepositoryStore] Retry tree without ref to let server choose default');
+          try {
+            return await fetchTree(
+              workspaceSlug,
+              repositoryName,
+              undefined,
+              path,
+              true,
+            );
+          } catch (retryError) {
+            console.error('[GitRepositoryStore] Retry (no ref) failed:', retryError);
+          }
+        }
+      }
+
       currentTree.value = null;
       throw error;
     } finally {

@@ -132,9 +132,7 @@ const loadingBranches = ref(false);
 /**
  * Опции для селектора веток
  */
-const branchOptions = computed(() => {
-  return branches.value.map((b) => b.name);
-});
+const branchOptions = computed(() => branches.value.map((b) => b.name));
 
 /**
  * Части пути для breadcrumbs
@@ -253,10 +251,16 @@ async function loadBranches(): Promise<void> {
     const result = await repoStore.fetchBranches(props.workspaceSlug, props.repoName);
     branches.value = result.branches;
 
-    // Если ветка не выбрана, выбираем дефолтную
-    if (!selectedBranch.value && branches.value.length > 0) {
-      const defaultBranch = branches.value.find((b) => b.is_default);
-      selectedBranch.value = defaultBranch?.name || branches.value[0].name;
+    // Если текущая ветка не выбрана или отсутствует в списке — ставим дефолтную/из пропов
+    if (
+      !selectedBranch.value ||
+      !branches.value.some((b) => b.name === selectedBranch.value)
+    ) {
+      const preferred =
+        branches.value.find((b) => b.name === props.initialBranch) ||
+        branches.value.find((b) => b.is_default) ||
+        branches.value[0];
+      selectedBranch.value = preferred?.name || '';
     }
   } catch (err) {
     console.error('[GitFileBrowser] Failed to load branches:', err);
@@ -265,6 +269,7 @@ async function loadBranches(): Promise<void> {
       message: 'Не удалось загрузить список веток',
       icon: 'error',
     });
+    throw err;
   } finally {
     loadingBranches.value = false;
   }
@@ -321,14 +326,35 @@ watch(
   () => {
     currentPath.value = '';
     selectedFile.value = null;
-    loadBranches();
-    loadTree();
+    selectedBranch.value = props.initialBranch || '';
+
+    // Сначала получаем ветки и определяем корректную ветку по умолчанию, затем грузим дерево
+    loadBranches()
+      .then(() => loadTree())
+      .catch(() => null);
+  },
+);
+
+// Обновляем выбранную ветку при изменении initialBranch (после загрузки info)
+watch(
+  () => props.initialBranch,
+  (newVal) => {
+    if (
+      newVal &&
+      (!selectedBranch.value || selectedBranch.value !== newVal) &&
+      branches.value.some((b) => b.name === newVal)
+    ) {
+      selectedBranch.value = newVal;
+      loadTree();
+    }
   },
 );
 
 onMounted(() => {
-  loadBranches();
-  loadTree();
+  // Грузим ветки, определяем дефолт, потом дерево
+  loadBranches()
+    .then(() => loadTree())
+    .catch(() => null);
 });
 </script>
 

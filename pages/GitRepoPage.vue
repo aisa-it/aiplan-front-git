@@ -1,13 +1,13 @@
 <template>
   <q-page class="git-repo-page q-pa-md">
     <!-- Header with Repository Name and Clone Button -->
-    <div class="row items-center justify-between q-mb-md">
+    <div class="row items-center justify-between q-mb-md repo-header">
       <div class="col-auto">
-        <div class="text-h5 q-mb-xs">
+        <div class="text-h6 q-mb-xs">
           <q-icon name="folder" size="sm" class="q-mr-sm" />
           {{ repoName }}
         </div>
-        <div class="text-subtitle2 text-grey-7">
+        <div class="text-body2 text-grey-7">
           Workspace: {{ workspaceSlug }}
         </div>
       </div>
@@ -77,19 +77,17 @@
     </div>
 
     <!-- Repository Information Card -->
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">
+    <q-card flat bordered class="q-mb-md repo-info-card">
+      <q-card-section class="q-pb-none q-pt-sm q-pl-md q-pr-md">
+        <div class="text-subtitle1">
           <q-icon name="info" class="q-mr-sm" />
           Информация о репозитории
         </div>
       </q-card-section>
 
-      <q-separator />
-
       <!-- Loading State -->
-      <q-card-section v-if="repoStore.loadingRepoInfo">
-        <div class="row justify-center q-py-lg">
+      <q-card-section v-if="repoStore.loadingRepoInfo" class="q-pt-sm q-pb-sm">
+        <div class="row justify-center">
           <q-spinner color="primary" size="lg" />
         </div>
       </q-card-section>
@@ -105,7 +103,7 @@
       </q-card-section>
 
       <!-- Repository Info -->
-      <q-list v-else separator>
+      <q-list v-else separator dense class="repo-info-list">
         <!-- Default Branch -->
         <q-item>
           <q-item-section avatar>
@@ -381,5 +379,31 @@ onMounted(async () => {
 <style lang="scss" scoped>
 .git-repo-page {
   // Стили для страницы репозитория
+}
+
+.repo-header {
+  .q-btn {
+    min-height: 36px;
+  }
+}
+
+.repo-info-card {
+  .q-card__section {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .q-item {
+    min-height: 38px;
+  }
+
+  .q-item__section--avatar {
+    padding-right: 8px;
+  }
+}
+
+.repo-info-list {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 </style>
