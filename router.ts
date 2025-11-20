@@ -24,6 +24,15 @@ const gitRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'ssh-keys',
+        name: 'git-ssh-keys',
+        component: () => import('./pages/GitSshKeysPage.vue'),
+        meta: {
+          title: 'SSH Keys',
+          breadcrumb: 'SSH Keys',
+        },
+      },
+      {
         path: ':repoName',
         name: 'git-repo',
         component: () => import('./pages/GitRepoPage.vue'),

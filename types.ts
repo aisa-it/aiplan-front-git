@@ -192,3 +192,11 @@ export interface AddSSHKeyRequest {
   name: string;
   public_key: string;
 }
+
+/**
+ * Список SSH ключей
+ */
+export interface SSHKeysListResponse {
+  keys: SSHKey[];
+  total: number;
+}
