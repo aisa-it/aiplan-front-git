@@ -42,6 +42,15 @@ const gitRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: ':repoName/commits',
+        name: 'git-commits',
+        component: () => import('./pages/GitCommitsPage.vue'),
+        meta: {
+          title: 'Commits History',
+          breadcrumb: 'Commits',
+        },
+      },
+      {
         path: ':repoName/settings',
         name: 'git-repo-settings',
         component: () => import('./pages/GitRepoSettingsPage.vue'),

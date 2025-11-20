@@ -12,6 +12,22 @@
         >
           <!-- Clone Button Slot -->
           <template #clone-button>
+            <!-- Commits Button (скрыта для пустых репозиториев) -->
+            <q-btn
+              v-if="!isEmptyRepository"
+              flat
+              dense
+              no-caps
+              color="primary"
+              icon="history"
+              label="Commits"
+              class="q-mr-sm"
+              @click="handleCommitsClick"
+            >
+              <q-tooltip>Посмотреть историю коммитов</q-tooltip>
+            </q-btn>
+
+            <!-- Code/Clone Button -->
             <q-btn
               flat
               dense
@@ -125,15 +141,17 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useGitRepositoryStore } from '../stores/git-repository-store';
 import { useGitConfigStore } from '../stores/git-config-store';
 import { formatBytes, formatRelativeTime, shortenSha } from '../utils/format';
 import GitFileBrowser from '../components/GitFileBrowser.vue';
 import GitFileViewer from '../components/GitFileViewer.vue';
+import type { GitBranch } from '../types';
 
 const route = useRoute();
+const router = useRouter();
 const $q = useQuasar();
 const repoStore = useGitRepositoryStore();
 const gitConfigStore = useGitConfigStore();
@@ -146,6 +164,10 @@ const cloneMenuRef = ref<any>(null);
 
 // Состояние для просмотра файлов (используется для условного рендеринга)
 const selectedFile = ref<{ path: string; branch: string; name: string } | null>(null);
+
+// Список веток для синхронизации с GitFileBrowser
+const branches = ref<GitBranch[]>([]);
+const loadingBranches = ref(false);
 
 /**
  * HTTP clone URL
@@ -167,6 +189,14 @@ const sshCloneUrl = computed(() => {
   const port = gitConfigStore.sshPort || 22222;
 
   return `ssh://git@${host}:${port}/${workspaceSlug.value}/${repoName.value}.git`;
+});
+
+/**
+ * Определяет, является ли репозиторий пустым (нет веток/коммитов)
+ * Синхронизировано с GitFileBrowser для одинаковой логики отображения
+ */
+const isEmptyRepository = computed(() => {
+  return !loadingBranches.value && branches.value.length === 0;
 });
 
 /**
@@ -286,6 +316,20 @@ async function onCloneClick(): Promise<void> {
 }
 
 /**
+ * Обработчик клика на кнопку Commits
+ * Переходит на страницу истории коммитов
+ */
+function handleCommitsClick(): void {
+  router.push({
+    name: 'git-commits',
+    params: {
+      workspace: workspaceSlug.value,
+      repoName: repoName.value,
+    },
+  });
+}
+
+/**
  * Обработчик выбора файла из GitFileBrowser
  * Переключает вид с браузера на просмотр файла
  */
@@ -301,9 +345,31 @@ function closeFileViewer(): void {
 }
 
 /**
+ * Загружает список веток для проверки пустого репозитория
+ * Синхронизировано с логикой GitFileBrowser
+ */
+async function loadBranches(): Promise<void> {
+  loadingBranches.value = true;
+
+  try {
+    const result = await repoStore.fetchBranches(workspaceSlug.value, repoName.value);
+    branches.value = result.branches;
+  } catch (error) {
+    console.error('[GitRepoPage] Failed to load branches:', error);
+    // Для пустых репозиториев ошибка ожидаема, поэтому не показываем notification
+    branches.value = [];
+  } finally {
+    loadingBranches.value = false;
+  }
+}
+
+/**
  * Загружает информацию о репозитории при монтировании компонента
  */
 onMounted(async () => {
+  // Загружаем ветки первыми, чтобы isEmptyRepository был корректным
+  await loadBranches();
+
   try {
     await repoStore.fetchRepoInfo(workspaceSlug.value, repoName.value);
   } catch (error) {

@@ -157,8 +157,8 @@
 
     <!-- Content: Last Commit + File Table -->
     <div v-else-if="repoStore.currentTree" class="browser-content">
-      <!-- Last Commit Info Block -->
-      <div v-if="lastCommitForPath" class="last-commit-block">
+      <!-- Last Commit Info Block (скрыт для пустых репозиториев) -->
+      <div v-if="lastCommitForPath && !isEmptyRepository" class="last-commit-block">
         <div class="commit-left">
           <!-- Author Avatar -->
           <q-avatar size="40px" :color="getAvatarColor(lastCommitForPath.author.name)" text-color="white">
