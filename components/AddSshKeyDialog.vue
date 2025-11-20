@@ -4,7 +4,9 @@
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Добавить SSH ключ</div>
         <q-space />
-        <q-btn icon="close" flat round dense v-close-popup />
+        <q-btn flat round dense v-close-popup>
+          <CloseIcon :width="20" :height="20" />
+        </q-btn>
       </q-card-section>
 
       <q-card-section>
@@ -43,7 +45,7 @@
           <!-- Инструкции -->
           <q-banner dense class="bg-blue-1 text-dark">
             <template v-slot:avatar>
-              <q-icon name="info" color="primary" />
+              <InfoIcon :width="24" :height="24" color="#1976D2" />
             </template>
             <div class="text-caption">
               <strong>Генерация SSH ключа:</strong><br />
@@ -61,7 +63,7 @@
             @mouseleave="errorHovered = false"
           >
             <template v-slot:avatar>
-              <q-icon name="error" color="white" />
+              <AlertIcon :width="24" :height="24" color="white" />
             </template>
             {{ errorMessage }}
           </q-banner>
@@ -92,6 +94,9 @@
 import { ref } from 'vue';
 import { useDialogPluginComponent, useQuasar } from 'quasar';
 import { useGitSshKeysStore } from '../stores/git-ssh-keys-store';
+import CloseIcon from 'src/components/icons/CloseIcon.vue';
+import InfoIcon from 'src/components/icons/InfoIcon.vue';
+import AlertIcon from 'src/components/icons/AlertIcon.vue';
 
 /**
  * Диалог добавления SSH ключа

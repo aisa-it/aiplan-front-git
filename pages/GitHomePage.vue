@@ -5,7 +5,7 @@
       <!-- Главная страница Git модуля -->
       <q-card-section>
         <div class="text-center q-pa-xl">
-          <q-icon name="mdi-git" size="6em" color="primary" class="q-mb-md" />
+          <GitIcon :width="96" :height="96" color="var(--q-primary)" class="q-mb-md" />
           <div class="text-h4 text-weight-light q-mb-md">
             GIT репозитории
           </div>
@@ -21,7 +21,7 @@
             style="max-width: 600px; margin: 0 auto;"
           >
             <template v-slot:avatar>
-              <q-icon name="warning" />
+              <AlertIcon :width="24" :height="24" color="white" />
             </template>
             <div class="text-left">
               <strong>Git функционал отключен</strong><br />
@@ -72,7 +72,7 @@
             v-else-if="!loadingRepositories && repositories.length === 0 && gitStore.gitEnabled"
             class="q-mt-lg"
           >
-            <q-icon name="mdi-source-repository" size="4em" color="grey-5" class="q-mb-sm" />
+            <GitIcon :width="64" :height="64" color="#9e9e9e" class="q-mb-sm" />
             <div class="text-h6 text-grey-7">Нет репозиториев</div>
             <div class="text-body2 text-grey-6 q-mt-sm">
               Создайте первый репозиторий, нажав кнопку "Создать" в верхней панели
@@ -96,6 +96,8 @@ import { useWorkspaceStore } from 'src/stores/workspace-store';
 import { useGitConfigStore as useGitStore, useGitRepositoryStore } from '../stores';
 import { storeToRefs } from 'pinia';
 import { useQuasar } from 'quasar';
+import GitIcon from 'src/components/icons/GitIcon.vue';
+import AlertIcon from 'src/components/icons/AlertIcon.vue';
 
 const workspaceStore = useWorkspaceStore();
 const gitStore = useGitStore(); // Для проверки gitEnabled

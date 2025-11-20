@@ -266,12 +266,19 @@ const pathParts = computed(() => {
 });
 
 /**
- * Отсортированные записи: сначала ".." (если не root), затем записи в исходном порядке из API
+ * Отсортированные записи: сначала ".." (если не root), затем папки, затем файлы
  */
 const sortedEntries = computed(() => {
   if (!repoStore.currentTree) return [];
 
   const entries = [...repoStore.currentTree.entries];
+
+  // Разделяем на папки и файлы
+  const dirs = entries.filter(e => e.type === 'dir');
+  const files = entries.filter(e => e.type === 'file');
+
+  // Объединяем: сначала папки, потом файлы (без алфавитной сортировки внутри типов)
+  const sorted = [...dirs, ...files];
 
   // Добавляем ".." для перехода на уровень выше (если не в корне)
   const result: Array<GitTreeEntry & { lastCommit?: GitCommit }> = [];
@@ -285,8 +292,7 @@ const sortedEntries = computed(() => {
     });
   }
 
-  // Отображаем записи в исходном порядке из API (без сортировки)
-  result.push(...entries);
+  result.push(...sorted);
 
   return result;
 });

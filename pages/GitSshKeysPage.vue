@@ -11,18 +11,21 @@
         </div>
         <q-btn
           color="primary"
-          icon="add"
           label="Добавить SSH ключ"
           @click="openAddKeyDialog"
           :disable="loading"
-        />
+        >
+          <template v-slot:prepend>
+            <AddIcon :width="18" :height="18" color="white" />
+          </template>
+        </q-btn>
       </div>
     </div>
 
     <!-- SSH Configuration Info -->
     <q-banner v-if="sshConfig" dense class="bg-blue-1 text-dark q-mb-md">
       <template v-slot:avatar>
-        <q-icon name="info" color="primary" />
+        <InfoIcon :width="24" :height="24" color="#1976D2" />
       </template>
       <div class="text-body2">
         <strong>SSH сервер:</strong> {{ sshConfig.ssh_host }}:{{
@@ -49,10 +52,13 @@
       </p>
       <q-btn
         color="primary"
-        icon="add"
         label="Добавить первый ключ"
         @click="openAddKeyDialog"
-      />
+      >
+        <template v-slot:prepend>
+          <AddIcon :width="18" :height="18" color="white" />
+        </template>
+      </q-btn>
     </div>
 
     <!-- Таблица SSH ключей (Desktop) -->
@@ -225,7 +231,7 @@
 
           <q-banner dense class="bg-orange-1 text-dark">
             <template v-slot:avatar>
-              <q-icon name="warning" color="orange" />
+              <AlertIcon :width="24" :height="24" color="#FF9800" />
             </template>
             <strong>Внимание:</strong> Никогда не делитесь приватным ключом
             (id_ed25519 без .pub)! Добавляйте только публичный ключ.
@@ -244,6 +250,9 @@ import { useGitSshKeysStore } from '../stores/git-ssh-keys-store';
 import { useGitConfigStore } from '../stores/git-config-store';
 import AddSshKeyDialog from '../components/AddSshKeyDialog.vue';
 import type { SSHKey } from '../types';
+import AddIcon from 'src/components/icons/AddIcon.vue';
+import InfoIcon from 'src/components/icons/InfoIcon.vue';
+import AlertIcon from 'src/components/icons/AlertIcon.vue';
 
 /**
  * Страница управления SSH ключами

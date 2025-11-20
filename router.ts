@@ -41,6 +41,15 @@ const gitRoutes: RouteRecordRaw[] = [
           breadcrumb: 'Repository',
         },
       },
+      {
+        path: ':repoName/settings',
+        name: 'git-repo-settings',
+        component: () => import('./pages/GitRepoSettingsPage.vue'),
+        meta: {
+          title: 'Repository Settings',
+          breadcrumb: 'Settings',
+        },
+      },
       // NOTE: Роут закомментирован - файлы теперь открываются в dialog внутри GitRepoPage
       // {
       //   path: ':repoName/blob/:ref/:encodedPath',

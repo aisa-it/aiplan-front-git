@@ -4,7 +4,9 @@
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Создать Git репозиторий</div>
         <q-space />
-        <q-btn icon="close" flat round dense v-close-popup />
+        <q-btn flat round dense v-close-popup>
+          <CloseIcon :width="20" :height="20" />
+        </q-btn>
       </q-card-section>
 
       <q-form @submit="onSubmit" class="q-gutter-md">
@@ -20,7 +22,7 @@
             autofocus
           >
             <template v-slot:prepend>
-              <q-icon name="mdi-git" />
+              <GitIcon :width="24" :height="24" />
             </template>
           </q-input>
 
@@ -35,7 +37,7 @@
             class="q-mt-md"
           >
             <template v-slot:prepend>
-              <q-icon name="description" />
+              <DocumentIcon :width="24" :height="24" />
             </template>
           </q-input>
 
@@ -70,7 +72,7 @@
             dense
           >
             <template v-slot:avatar>
-              <q-icon name="info" />
+              <InfoIcon :width="24" :height="24" color="white" />
             </template>
             <div :class="$q.screen.lt.sm ? 'text-caption ssh-url-mobile' : 'text-caption'">
               После создания репозиторий будет доступен по адресу:<br />
@@ -92,9 +94,12 @@
             type="submit"
             label="Создать"
             color="primary"
-            icon="add"
             :loading="loading"
-          />
+          >
+            <template v-slot:prepend>
+              <AddIcon :width="18" :height="18" color="white" />
+            </template>
+          </q-btn>
         </q-card-actions>
       </q-form>
     </q-card>
@@ -107,6 +112,11 @@ import { useQuasar } from 'quasar';
 import { useGitRepositoryStore } from '../stores';
 import { useWorkspaceStore } from 'src/stores/workspace-store';
 import type { CreateRepositoryRequest } from '../types';
+import CloseIcon from 'src/components/icons/CloseIcon.vue';
+import GitIcon from 'src/components/icons/GitIcon.vue';
+import DocumentIcon from 'src/components/icons/DocumentIcon.vue';
+import InfoIcon from 'src/components/icons/InfoIcon.vue';
+import AddIcon from 'src/components/icons/AddIcon.vue';
 
 // Props
 interface Props {
