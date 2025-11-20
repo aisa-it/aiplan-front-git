@@ -3,8 +3,9 @@
     <!-- Breadcrumbs and Branch Selector Header -->
     <div class="browser-header">
       <div class="header-left">
-        <!-- Branch Selector Dropdown -->
+        <!-- Branch Selector Dropdown (скрыт если репозиторий пустой) -->
         <q-btn-dropdown
+          v-if="!isEmptyRepository"
           v-model="branchDropdownOpen"
           :label="selectedBranch"
           :loading="loadingBranches"
@@ -36,8 +37,8 @@
           </q-list>
         </q-btn-dropdown>
 
-        <!-- Breadcrumbs Path -->
-        <div class="path-breadcrumbs">
+        <!-- Breadcrumbs Path (скрыт если репозиторий пустой) -->
+        <div v-if="!isEmptyRepository" class="path-breadcrumbs">
           <span class="path-separator">/</span>
           <span class="path-part" @click="navigateToPath('')">{{ repoName }}</span>
           <template v-for="(part, index) in pathParts" :key="index">
@@ -51,8 +52,15 @@
           </template>
         </div>
 
-        <!-- Copy Path Button -->
+        <!-- Название репозитория (показывается только для пустых репозиториев) -->
+        <div v-else class="empty-repo-header">
+          <q-icon name="folder_open" size="20px" color="grey-7" />
+          <span class="repo-name">{{ repoName }}</span>
+        </div>
+
+        <!-- Copy Path Button (скрыт если репозиторий пустой) -->
         <q-btn
+          v-if="!isEmptyRepository"
           flat
           dense
           round
@@ -71,8 +79,69 @@
       </div>
     </div>
 
+    <!-- Empty Repository State (новый блок) -->
+    <div v-if="isEmptyRepository && !loadingBranches" class="empty-repository-container">
+      <q-card flat bordered class="empty-repo-card">
+        <q-card-section class="text-center q-pa-xl">
+          <q-icon name="code_off" size="80px" color="grey-5" />
+
+          <div class="text-h5 text-weight-medium q-mt-lg q-mb-md">
+            Репозиторий пустой
+          </div>
+
+          <div class="text-body1 text-grey-7 q-mb-xl">
+            Этот репозиторий был только что создан. Добавьте файлы, чтобы начать работу.
+          </div>
+
+          <q-separator class="q-mb-lg" />
+
+          <div class="instructions-section">
+            <div class="text-h6 text-weight-medium q-mb-md text-left">
+              Быстрый старт
+            </div>
+
+            <q-card flat bordered class="code-block q-mb-md">
+              <q-card-section class="q-pa-md">
+                <div class="text-caption text-grey-7 q-mb-sm">Клонируйте репозиторий:</div>
+                <code class="command-line">git clone {{ cloneUrl }}</code>
+              </q-card-section>
+            </q-card>
+
+            <q-card flat bordered class="code-block q-mb-md">
+              <q-card-section class="q-pa-md">
+                <div class="text-caption text-grey-7 q-mb-sm">Перейдите в директорию:</div>
+                <code class="command-line">cd {{ repoName }}</code>
+              </q-card-section>
+            </q-card>
+
+            <q-card flat bordered class="code-block q-mb-md">
+              <q-card-section class="q-pa-md">
+                <div class="text-caption text-grey-7 q-mb-sm">Создайте файлы и сделайте первый коммит:</div>
+                <code class="command-line">echo "# {{ repoName }}" >> README.md</code>
+                <code class="command-line">git add .</code>
+                <code class="command-line">git commit -m "Initial commit"</code>
+              </q-card-section>
+            </q-card>
+
+            <q-card flat bordered class="code-block">
+              <q-card-section class="q-pa-md">
+                <div class="text-caption text-grey-7 q-mb-sm">Отправьте изменения на сервер:</div>
+                <code class="command-line">git push origin main</code>
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <q-separator class="q-my-lg" />
+
+          <div class="text-caption text-grey-6">
+            После первого push содержимое репозитория появится здесь автоматически.
+          </div>
+        </q-card-section>
+      </q-card>
+    </div>
+
     <!-- Loading State -->
-    <div v-if="repoStore.loadingTree" class="loading-container">
+    <div v-else-if="repoStore.loadingTree || loadingBranches" class="loading-container">
       <q-spinner color="primary" size="lg" />
     </div>
 
@@ -259,6 +328,21 @@ const columns = [
 ];
 
 /**
+ * Определяет, является ли репозиторий пустым (нет веток)
+ */
+const isEmptyRepository = computed(() => {
+  return !loadingBranches.value && branches.value.length === 0;
+});
+
+/**
+ * Clone URL для инструкций в пустом репозитории
+ */
+const cloneUrl = computed(() => {
+  const host = window.location.host;
+  return `http://${host}/${props.workspaceSlug}/${props.repoName}.git`;
+});
+
+/**
  * Части пути для breadcrumbs
  */
 const pathParts = computed(() => {
@@ -442,6 +526,12 @@ async function copyToClipboard(text: string): Promise<void> {
  */
 async function loadTree(): Promise<void> {
   error.value = null;
+
+  // Не загружаем дерево для пустых репозиториев
+  if (isEmptyRepository.value) {
+    console.log('[GitFileBrowser] Skipping tree load for empty repository');
+    return;
+  }
 
   try {
     await repoStore.fetchTree(
@@ -694,6 +784,63 @@ onMounted(() => {
     }
   }
 
+  // Empty Repository State
+  .empty-repository-container {
+    padding: 24px 16px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+
+    .empty-repo-card {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fafafa;
+
+      .instructions-section {
+        text-align: left;
+        width: 100%;
+
+        .code-block {
+          background-color: #ffffff;
+          border-radius: 6px;
+
+          code.command-line {
+            display: block;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            color: #1f2937;
+            background-color: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            overflow-x: auto;
+            white-space: nowrap;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Empty repo header (показывается вместо breadcrumbs)
+  .empty-repo-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+
+    .repo-name {
+      color: #374151;
+      font-weight: 600;
+    }
+  }
+
   // Loading State
   .loading-container {
     display: flex;
@@ -896,6 +1043,35 @@ onMounted(() => {
       }
     }
 
+    .empty-repository-container {
+      padding: 16px 8px;
+
+      .empty-repo-card {
+        :deep(.q-card__section) {
+          padding: 24px 16px !important;
+        }
+
+        .text-h5 {
+          font-size: 1.25rem;
+        }
+
+        .text-h6 {
+          font-size: 1.1rem;
+        }
+
+        .instructions-section {
+          .code-block {
+            code.command-line {
+              font-size: 12px;
+              padding: 6px 10px;
+              white-space: pre-wrap;
+              word-break: break-all;
+            }
+          }
+        }
+      }
+    }
+
     .last-commit-block {
       flex-direction: column;
       align-items: flex-start;
@@ -960,6 +1136,33 @@ body.body--dark {
 
         &:hover {
           color: #d1d5db;
+        }
+      }
+
+      .empty-repo-header {
+        .repo-name {
+          color: #f9fafb;
+        }
+      }
+    }
+
+    .empty-repository-container {
+      background-color: #111827;
+      border-color: #374151;
+
+      .empty-repo-card {
+        background-color: #1f2937;
+
+        .instructions-section {
+          .code-block {
+            background-color: #111827;
+            border-color: #374151;
+
+            code.command-line {
+              color: #f9fafb;
+              background-color: #1f2937;
+            }
+          }
         }
       }
     }
