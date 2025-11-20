@@ -39,18 +39,35 @@ export const useGitSshKeysStore = defineStore('git-ssh-keys', () => {
       const aiplanStore = useAiplanStore();
       const api = aiplanStore.api;
 
+      console.log('[GitSshKeysStore] Starting SSH keys fetch...');
+
       const response = await api.get<SSHKeysListResponse>(
         '/api/auth/git/ssh-keys/',
       );
 
-      sshKeys.value = response.data.keys;
-      totalKeys.value = response.data.total;
+      console.log('[GitSshKeysStore] SSH keys API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        keysCount: response.data.keys?.length || 0,
+        total: response.data.total
+      });
+
+      sshKeys.value = response.data.keys || [];
+      totalKeys.value = response.data.total || 0;
 
       console.log('[GitSshKeysStore] SSH keys loaded:', {
         count: totalKeys.value,
+        keys: sshKeys.value
       });
     } catch (err: any) {
-      console.error('[GitSshKeysStore] Failed to fetch SSH keys:', err);
+      console.error('[GitSshKeysStore] Failed to fetch SSH keys:', {
+        error: err,
+        response: err?.response,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        message: err?.message
+      });
       error.value =
         err?.response?.data?.detail ||
         err?.response?.data?.message ||

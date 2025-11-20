@@ -176,6 +176,18 @@ onBeforeMount(async () => {
       }
     }
 
+    // 3.1. Загрузка SSH конфигурации (если еще не загружена)
+    if (!gitStore.sshConfigLoaded) {
+      try {
+        await gitStore.fetchSSHConfig();
+        console.log('[GitLayout] SSH config loaded successfully');
+      } catch (error) {
+        console.error('[GitLayout] Failed to load SSH config:', error);
+        // Не блокируем UI из-за ошибки SSH конфигурации
+        // Пользователь все равно может работать с SSH ключами
+      }
+    }
+
     // 3.5. КРИТИЧЕСКИ ВАЖНО: Загрузка списка репозиториев
     // Это решает проблему с пустым списком репозиториев при прямом переходе по URL
     // например при переходе на /:workspace/git/:repoName

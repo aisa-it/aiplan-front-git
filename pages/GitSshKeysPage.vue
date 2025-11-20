@@ -244,6 +244,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useQuasar, QTableColumn, copyToClipboard as qCopyToClipboard } from 'quasar';
+import { storeToRefs } from 'pinia';
 import { useGitSshKeysStore } from '../stores/git-ssh-keys-store';
 import { useGitConfigStore } from '../stores/git-config-store';
 import AddSshKeyDialog from '../components/AddSshKeyDialog.vue';
@@ -260,8 +261,8 @@ const $q = useQuasar();
 const sshKeysStore = useGitSshKeysStore();
 const gitConfigStore = useGitConfigStore();
 
-// State
-const { sshKeys, loading } = sshKeysStore;
+// State (используем storeToRefs для сохранения реактивности)
+const { sshKeys, loading } = storeToRefs(sshKeysStore);
 
 // SSH Configuration
 const sshConfig = computed(() => {
@@ -319,16 +320,28 @@ const columns: QTableColumn[] = [
  * Загрузка SSH ключей при монтировании компонента
  */
 onMounted(async () => {
+  console.log('[GitSshKeysPage] Component mounted, starting data loading...');
+
   try {
     // Загружаем SSH конфигурацию если еще не загружена
     if (!gitConfigStore.sshConfigLoaded) {
+      console.log('[GitSshKeysPage] SSH config not loaded, fetching...');
       await gitConfigStore.fetchSSHConfig();
+      console.log('[GitSshKeysPage] SSH config loaded:', gitConfigStore.sshConfig);
+    } else {
+      console.log('[GitSshKeysPage] SSH config already loaded');
     }
 
     // Загружаем список SSH ключей
+    console.log('[GitSshKeysPage] Fetching SSH keys...');
     await sshKeysStore.fetchSshKeys();
+    console.log('[GitSshKeysPage] SSH keys loaded:', {
+      count: sshKeysStore.sshKeys.length,
+      loading: sshKeysStore.loading,
+      error: sshKeysStore.error
+    });
   } catch (error) {
-    console.error('Failed to load SSH keys:', error);
+    console.error('[GitSshKeysPage] Failed to load SSH keys:', error);
     $q.notify({
       type: 'negative',
       message: 'Не удалось загрузить список SSH ключей',
