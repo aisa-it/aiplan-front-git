@@ -1,63 +1,27 @@
 <template>
   <q-page class="git-repo-page q-pa-md">
-    <!-- Main Content Area: File Browser OR File Viewer -->
-    <q-card flat bordered class="q-mb-md">
-      <!-- Header Section with Stats and Actions -->
-      <q-card-section class="q-pb-sm q-pt-sm">
-        <div class="row items-center justify-between flex-wrap gap-sm">
-          <div class="row items-center">
-            <q-icon :name="selectedFile ? 'insert_drive_file' : 'folder_open'" class="q-mr-sm" />
-            <span class="text-subtitle1">{{ selectedFile ? selectedFile.name : 'Файлы' }}</span>
-
-            <!-- Back Button (only when viewing file) -->
-            <q-btn
-              v-if="selectedFile"
-              flat
-              dense
-              no-caps
-              icon="arrow_back"
-              label="Назад к файлам"
-              class="q-ml-md"
-              @click="closeFileViewer"
-            />
-          </div>
-          <div class="row items-center flex-wrap stats-actions">
-            <div v-if="repoStore.currentRepoInfo" class="row items-center stats-row">
-              <div class="stat-item">
-                <span class="stat-label">Веток:</span>
-                <span class="stat-value">{{ repoStore.currentRepoInfo.branches_count }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Комитов:</span>
-                <span class="stat-value">{{ repoStore.currentRepoInfo.commits_count }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Размер:</span>
-                <span class="stat-value">{{ formatBytes(repoStore.currentRepoInfo.size) }}</span>
-              </div>
-              <div
-                class="stat-item"
-                v-if="repoStore.currentRepoInfo.last_commit"
-              >
-                <span class="stat-label">Последний:</span>
-                <span class="stat-value">
-                  {{ shortenSha(repoStore.currentRepoInfo.last_commit.sha) }},
-                  {{ formatRelativeTime(repoStore.currentRepoInfo.last_commit.author.date) }}
-                </span>
-              </div>
-            </div>
-
+    <!-- Transition between File Browser and File Viewer -->
+    <transition name="fade-slide" mode="out-in">
+      <!-- File Browser (default view) -->
+      <div v-if="!selectedFile" key="browser">
+        <GitFileBrowser
+          :workspace-slug="workspaceSlug"
+          :repo-name="repoName"
+          :initial-branch="repoStore.currentRepoInfo?.default_branch"
+          @file-selected="onFileSelected"
+        >
+          <!-- Clone Button Slot -->
+          <template #clone-button>
             <q-btn
               flat
               dense
               no-caps
-              class="primary-btn-sm clone-btn q-ml-sm q-mt-xs"
+              color="primary"
+              icon="content_copy"
+              label="Code"
               :loading="loadingConfig"
-              aria-haspopup="menu"
               @click="onCloneClick"
             >
-              <q-icon name="content_copy" size="18px" class="q-mr-xs" />
-              <span>Clone</span>
               <q-menu
                 v-if="!loadingConfig"
                 ref="cloneMenuRef"
@@ -75,22 +39,22 @@
                         :style="$q.screen.lt.sm
                           ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
                           : 'white-space: normal; word-break: break-all;'"
-                    >
-                      {{ httpCloneUrl }}
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-btn
-                      flat
-                      round
-                      dense
-                      icon="content_copy"
-                      color="primary"
-                      @click.stop="handleCopyLink(httpCloneUrl)"
-                    >
-                      <q-tooltip>Скопировать HTTP URL</q-tooltip>
-                    </q-btn>
-                  </q-item-section>
+                      >
+                        {{ httpCloneUrl }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        icon="content_copy"
+                        color="primary"
+                        @click.stop="handleCopyLink(httpCloneUrl)"
+                      >
+                        <q-tooltip>Скопировать HTTP URL</q-tooltip>
+                      </q-btn>
+                    </q-item-section>
                   </q-item>
 
                   <q-separator />
@@ -107,59 +71,55 @@
                         :style="$q.screen.lt.sm
                           ? 'white-space: normal; word-break: break-all; max-width: calc(90vw - 80px); overflow-wrap: anywhere;'
                           : 'white-space: normal; word-break: break-all;'"
-                    >
-                      {{ sshCloneUrl }}
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-btn
-                      flat
-                      round
-                      dense
-                      icon="content_copy"
-                      color="primary"
-                      :disable="!gitConfigStore.sshEnabled"
-                      @click.stop="handleCopyLink(sshCloneUrl)"
-                    >
-                      <q-tooltip>Скопировать SSH URL</q-tooltip>
-                    </q-btn>
-                  </q-item-section>
+                      >
+                        {{ sshCloneUrl }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        icon="content_copy"
+                        color="primary"
+                        :disable="!gitConfigStore.sshEnabled"
+                        @click.stop="handleCopyLink(sshCloneUrl)"
+                      >
+                        <q-tooltip>Скопировать SSH URL</q-tooltip>
+                      </q-btn>
+                    </q-item-section>
                   </q-item>
                 </q-list>
               </q-menu>
             </q-btn>
-          </div>
+          </template>
+        </GitFileBrowser>
+      </div>
+
+      <!-- File Viewer (when file is selected) -->
+      <div v-else key="viewer" class="file-viewer-container">
+        <!-- Back Button -->
+        <div class="viewer-header">
+          <q-btn
+            flat
+            dense
+            no-caps
+            icon="arrow_back"
+            label="Назад к файлам"
+            @click="closeFileViewer"
+          />
+          <span class="file-name">{{ selectedFile.name }}</span>
         </div>
-      </q-card-section>
 
-      <q-separator />
-
-      <!-- Content Section: File Browser OR File Viewer -->
-      <q-card-section class="q-pa-md">
-        <transition name="fade-slide" mode="out-in">
-          <!-- File Browser (default view) -->
-          <GitFileBrowser
-            v-if="!selectedFile"
-            key="browser"
-            :workspace-slug="workspaceSlug"
-            :repo-name="repoName"
-            :initial-branch="repoStore.currentRepoInfo?.default_branch"
-            @file-selected="onFileSelected"
-          />
-
-          <!-- File Viewer (when file is selected) -->
-          <GitFileViewer
-            v-else
-            key="viewer"
-            :workspace-slug="workspaceSlug"
-            :repo-name="repoName"
-            :file-path="selectedFile.path"
-            :git-ref="selectedFile.branch"
-            @close="closeFileViewer"
-          />
-        </transition>
-      </q-card-section>
-    </q-card>
+        <GitFileViewer
+          :workspace-slug="workspaceSlug"
+          :repo-name="repoName"
+          :file-path="selectedFile.path"
+          :git-ref="selectedFile.branch"
+          @close="closeFileViewer"
+        />
+      </div>
+    </transition>
   </q-page>
 </template>
 
@@ -369,58 +329,27 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .git-repo-page {
-  // Стили для страницы репозитория
+  // Основные стили для страницы репозитория
 }
 
-.repo-info-card {
-  .q-card__section {
-    padding-top: 6px;
-    padding-bottom: 6px;
+// File Viewer Container
+.file-viewer-container {
+  .viewer-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background-color: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px 6px 0 0;
+    margin-bottom: -1px;
+
+    .file-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1f2937;
+    }
   }
-
-  .q-item {
-    min-height: 38px;
-  }
-
-  .q-item__section--avatar {
-    padding-right: 8px;
-  }
-}
-
-.repo-info-list {
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-.stats-row {
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-
-  .stat-label {
-    color: #6b7280;
-  }
-
-.stat-value {
-    color: #111827;
-    font-weight: 600;
-  }
-}
-
-.stats-actions {
-  gap: 12px;
-}
-
-.clone-btn {
-  border-radius: 12px;
-  padding: 0 18px;
-  color: #fff;
 }
 
 // Transition анимации для переключения между Browser и Viewer
@@ -439,14 +368,17 @@ onMounted(async () => {
   transform: translateX(-20px);
 }
 
-// Responsive дизайн для мобильных устройств
-@media (max-width: 600px) {
-  .stats-row {
-    display: none; // Скрываем статистику на мобильных для экономии места
-  }
+// Dark mode support
+body.body--dark {
+  .file-viewer-container {
+    .viewer-header {
+      background-color: #1f2937;
+      border-color: #374151;
 
-  .stat-item {
-    font-size: 12px;
+      .file-name {
+        color: #f9fafb;
+      }
+    }
   }
 }
 </style>

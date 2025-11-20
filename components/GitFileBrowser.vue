@@ -1,52 +1,83 @@
 <template>
   <div class="git-file-browser">
-    <!-- Breadcrumbs and Branch Selector -->
-    <div class="row items-center q-mb-md">
-      <!-- Branch Selector -->
-      <div class="col-auto q-mr-md">
-        <q-select
-          v-model="selectedBranch"
-          :options="branchOptions"
+    <!-- Breadcrumbs and Branch Selector Header -->
+    <div class="browser-header">
+      <div class="header-left">
+        <!-- Branch Selector Dropdown -->
+        <q-btn-dropdown
+          v-model="branchDropdownOpen"
+          :label="selectedBranch"
           :loading="loadingBranches"
-          label="Ветка"
-          outlined
+          icon="fork_right"
+          flat
           dense
-          :style="$q.screen.lt.sm ? 'min-width: 120px' : 'min-width: 200px'"
-          @update:model-value="onBranchChange"
+          no-caps
+          class="branch-selector"
         >
-          <template v-slot:prepend>
-            <q-icon name="fork_right" />
+          <q-list>
+            <q-item
+              v-for="branch in branches"
+              :key="branch.name"
+              clickable
+              v-close-popup
+              @click="onBranchChange(branch.name)"
+              :active="selectedBranch === branch.name"
+            >
+              <q-item-section>
+                <q-item-label>{{ branch.name }}</q-item-label>
+                <q-item-label v-if="branch.is_default" caption class="text-primary">
+                  По умолчанию
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side v-if="selectedBranch === branch.name">
+                <q-icon name="check" color="primary" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+
+        <!-- Breadcrumbs Path -->
+        <div class="path-breadcrumbs">
+          <span class="path-separator">/</span>
+          <span class="path-part" @click="navigateToPath('')">{{ repoName }}</span>
+          <template v-for="(part, index) in pathParts" :key="index">
+            <span class="path-separator">/</span>
+            <span
+              class="path-part"
+              @click="navigateToPath(pathParts.slice(0, index + 1).join('/'))"
+            >
+              {{ part }}
+            </span>
           </template>
-        </q-select>
+        </div>
+
+        <!-- Copy Path Button -->
+        <q-btn
+          flat
+          dense
+          round
+          icon="content_copy"
+          size="sm"
+          class="copy-path-btn"
+          @click="copyPath"
+        >
+          <q-tooltip>Скопировать путь</q-tooltip>
+        </q-btn>
       </div>
 
-      <!-- Breadcrumbs -->
-      <div class="col">
-        <q-breadcrumbs>
-          <q-breadcrumbs-el
-            icon="home"
-            :label="repoName"
-            @click="navigateToPath('')"
-            clickable
-          />
-          <q-breadcrumbs-el
-            v-for="(part, index) in pathParts"
-            :key="index"
-            :label="part"
-            @click="navigateToPath(pathParts.slice(0, index + 1).join('/'))"
-            clickable
-          />
-        </q-breadcrumbs>
+      <!-- Code Button (Clone) - moved from last-commit-block -->
+      <div class="header-right">
+        <slot name="clone-button"></slot>
       </div>
     </div>
 
     <!-- Loading State -->
-    <div v-if="repoStore.loadingTree" class="row justify-center q-py-lg">
+    <div v-if="repoStore.loadingTree" class="loading-container">
       <q-spinner color="primary" size="lg" />
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="q-pa-md">
+    <div v-else-if="error" class="error-container">
       <q-banner class="bg-negative text-white" rounded>
         <template v-slot:avatar>
           <q-icon name="error" color="white" />
@@ -55,46 +86,114 @@
       </q-banner>
     </div>
 
-    <!-- File List -->
-    <q-list v-else-if="repoStore.currentTree" bordered separator>
+    <!-- Content: Last Commit + File Table -->
+    <div v-else-if="repoStore.currentTree" class="browser-content">
+      <!-- Last Commit Info Block -->
+      <div v-if="lastCommitForPath" class="last-commit-block">
+        <div class="commit-left">
+          <!-- Author Avatar -->
+          <q-avatar size="40px" :color="getAvatarColor(lastCommitForPath.author.name)" text-color="white">
+            {{ getInitials(lastCommitForPath.author.name) }}
+          </q-avatar>
+
+          <div class="commit-info">
+            <!-- Commit Message -->
+            <div class="commit-message">{{ lastCommitForPath.message }}</div>
+            <!-- Author and Time -->
+            <div class="commit-meta">
+              <span class="commit-author">{{ lastCommitForPath.author.name }}</span>
+              сделал коммит
+              <span class="commit-time">{{ formatRelativeTime(lastCommitForPath.author.date) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="commit-right">
+          <!-- Short SHA with Copy -->
+          <div class="commit-sha">
+            <span class="sha-text">{{ shortenSha(lastCommitForPath.sha) }}</span>
+            <q-btn
+              flat
+              dense
+              round
+              icon="content_copy"
+              size="xs"
+              @click="copySha(lastCommitForPath.sha)"
+            >
+              <q-tooltip>Скопировать SHA</q-tooltip>
+            </q-btn>
+          </div>
+
+          <!-- History Button -->
+          <q-btn
+            flat
+            dense
+            label="История"
+            no-caps
+            icon="history"
+            class="btn-only-icon-sm bordered"
+            @click="showHistory"
+          >
+            <q-tooltip>История коммитов</q-tooltip>
+          </q-btn>
+        </div>
+      </div>
+
+      <!-- File Table -->
+      <q-table
+        :rows="sortedEntries"
+        :columns="columns"
+        row-key="name"
+        flat
+        bordered
+        hide-pagination
+        :rows-per-page-options="[0]"
+        class="file-table"
+      >
+        <!-- Name Column -->
+        <template v-slot:body-cell-name="props">
+          <q-td :props="props" class="name-cell">
+            <div class="name-content" @click="onEntryClick(props.row)">
+              <!-- File/Folder Icon -->
+              <q-icon
+                :name="props.row.type === 'dir' ? 'folder' : getFileIcon(props.row.name)"
+                :color="props.row.type === 'dir' ? 'amber-7' : 'blue-grey-6'"
+                size="20px"
+                class="file-icon"
+              />
+              <!-- Name -->
+              <span class="file-name">{{ props.row.name }}</span>
+            </div>
+          </q-td>
+        </template>
+
+        <!-- Last Commit Column -->
+        <template v-slot:body-cell-last_commit="props">
+          <q-td :props="props" class="commit-cell">
+            <span v-if="props.row.lastCommit" class="commit-message-short">
+              {{ props.row.lastCommit.message }}
+            </span>
+            <span v-else class="text-grey-6">—</span>
+          </q-td>
+        </template>
+
+        <!-- Last Update Column -->
+        <template v-slot:body-cell-last_update="props">
+          <q-td :props="props" class="update-cell">
+            <span v-if="props.row.lastCommit" class="update-time">
+              {{ formatRelativeTime(props.row.lastCommit.author.date) }}
+            </span>
+            <span v-else class="text-grey-6">—</span>
+          </q-td>
+        </template>
+      </q-table>
+
       <!-- Empty State -->
-      <q-item v-if="repoStore.currentTree.entries.length === 0">
-        <q-item-section avatar>
-          <q-icon name="folder_open" color="grey-5" size="md" />
-        </q-item-section>
-        <q-item-section>
-          <q-item-label class="text-grey-7">Директория пуста</q-item-label>
-        </q-item-section>
-      </q-item>
-
-      <!-- Directories First, Then Files -->
-      <template v-for="entry in sortedEntries" :key="entry.name">
-        <q-item
-          clickable
-          @click="onEntryClick(entry)"
-          :class="{ 'bg-blue-1': selectedFile === entry.name }"
-        >
-          <q-item-section avatar>
-            <q-icon
-              :name="entry.type === 'dir' ? 'folder' : getFileIcon(entry.name)"
-              :color="entry.type === 'dir' ? 'amber-7' : 'blue-grey-5'"
-              size="md"
-            />
-          </q-item-section>
-
-          <q-item-section>
-            <q-item-label>{{ entry.name }}</q-item-label>
-            <q-item-label caption v-if="entry.type === 'file' && entry.size !== undefined">
-              {{ formatBytes(entry.size) }}
-            </q-item-label>
-          </q-item-section>
-
-          <q-item-section side v-if="entry.type === 'dir'">
-            <q-icon name="chevron_right" color="grey-5" />
-          </q-item-section>
-        </q-item>
-      </template>
-    </q-list>
+      <div v-if="repoStore.currentTree.entries.length === 0" class="empty-state">
+        <q-icon name="folder_open" size="64px" color="grey-5" />
+        <div class="text-grey-7 q-mt-md">Директория пуста</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -102,8 +201,8 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useGitRepositoryStore } from '../stores/git-repository-store';
-import type { GitTreeEntry, GitBranch } from '../types';
-import { formatBytes } from '../utils/format';
+import type { GitTreeEntry, GitBranch, GitCommit } from '../types';
+import { formatBytes, formatRelativeTime, shortenSha } from '../utils/format';
 
 interface Props {
   workspaceSlug: string;
@@ -121,17 +220,43 @@ const emit = defineEmits<{
 const $q = useQuasar();
 const repoStore = useGitRepositoryStore();
 
+// State
 const currentPath = ref('');
 const selectedBranch = ref<string>(props.initialBranch || '');
-const selectedFile = ref<string | null>(null);
 const error = ref<string | null>(null);
 const branches = ref<GitBranch[]>([]);
 const loadingBranches = ref(false);
+const branchDropdownOpen = ref(false);
+const lastCommitForPath = ref<GitCommit | null>(null);
 
-/**
- * Опции для селектора веток
- */
-const branchOptions = computed(() => branches.value.map((b) => b.name));
+// Table columns definition
+const columns = [
+  {
+    name: 'name',
+    label: 'Название',
+    field: 'name',
+    align: 'left' as const,
+    sortable: false,
+    style: 'width: 35%',
+    headerStyle: 'font-weight: 600; background-color: #fafafa;',
+  },
+  {
+    name: 'last_commit',
+    label: 'Последний коммит',
+    field: 'last_commit',
+    align: 'left' as const,
+    style: 'width: 45%',
+    headerStyle: 'font-weight: 600; background-color: #fafafa;',
+  },
+  {
+    name: 'last_update',
+    label: 'Последнее обновление',
+    field: 'last_update',
+    align: 'right' as const,
+    style: 'width: 20%',
+    headerStyle: 'font-weight: 600; background-color: #fafafa;',
+  },
+];
 
 /**
  * Части пути для breadcrumbs
@@ -141,21 +266,29 @@ const pathParts = computed(() => {
 });
 
 /**
- * Отсортированные записи: сначала директории, потом файлы (по алфавиту)
+ * Отсортированные записи: сначала ".." (если не root), затем записи в исходном порядке из API
  */
 const sortedEntries = computed(() => {
   if (!repoStore.currentTree) return [];
 
   const entries = [...repoStore.currentTree.entries];
 
-  return entries.sort((a, b) => {
-    // Сначала по типу (dir < file)
-    if (a.type !== b.type) {
-      return a.type === 'dir' ? -1 : 1;
-    }
-    // Затем по имени
-    return a.name.localeCompare(b.name);
-  });
+  // Добавляем ".." для перехода на уровень выше (если не в корне)
+  const result: Array<GitTreeEntry & { lastCommit?: GitCommit }> = [];
+
+  if (currentPath.value) {
+    result.push({
+      name: '..',
+      type: 'dir' as const,
+      mode: '040000',
+      sha: '',
+    });
+  }
+
+  // Отображаем записи в исходном порядке из API (без сортировки)
+  result.push(...entries);
+
+  return result;
 });
 
 /**
@@ -166,11 +299,11 @@ function getFileIcon(filename: string): string {
 
   const iconMap: Record<string, string> = {
     // Code
-    js: 'code',
-    ts: 'code',
+    js: 'javascript',
+    ts: 'javascript',
     vue: 'code',
-    jsx: 'code',
-    tsx: 'code',
+    jsx: 'javascript',
+    tsx: 'javascript',
     go: 'code',
     py: 'code',
     java: 'code',
@@ -190,7 +323,7 @@ function getFileIcon(filename: string): string {
     toml: 'settings',
 
     // Documents
-    md: 'description',
+    md: 'article',
     txt: 'description',
     pdf: 'picture_as_pdf',
     doc: 'description',
@@ -220,6 +353,85 @@ function getFileIcon(filename: string): string {
 }
 
 /**
+ * Генерирует инициалы из имени пользователя
+ */
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+/**
+ * Генерирует цвет аватара на основе имени
+ */
+function getAvatarColor(name: string): string {
+  const colors = [
+    'pink-7',
+    'purple-7',
+    'deep-purple-7',
+    'indigo-7',
+    'blue-7',
+    'cyan-7',
+    'teal-7',
+    'green-7',
+    'light-green-7',
+    'lime-7',
+    'amber-7',
+    'orange-7',
+    'deep-orange-7',
+  ];
+
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
+/**
+ * Копирует путь в буфер обмена
+ */
+async function copyPath(): Promise<void> {
+  const fullPath = currentPath.value ? `${repoName}/${currentPath.value}` : repoName;
+  await copyToClipboard(fullPath);
+}
+
+/**
+ * Копирует SHA коммита в буфер обмена
+ */
+async function copySha(sha: string): Promise<void> {
+  await copyToClipboard(sha);
+}
+
+/**
+ * Утилита копирования в буфер обмена
+ */
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    $q.notify({
+      type: 'positive',
+      message: 'Скопировано в буфер обмена',
+      icon: 'check_circle',
+      position: 'top',
+      timeout: 2000,
+    });
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Не удалось скопировать',
+      icon: 'error',
+      position: 'top',
+      timeout: 2000,
+    });
+  }
+}
+
+/**
  * Загружает дерево файлов для текущего пути и ветки
  */
 async function loadTree(): Promise<void> {
@@ -234,9 +446,36 @@ async function loadTree(): Promise<void> {
     );
 
     emit('directory-changed', currentPath.value);
+
+    // Загружаем последний коммит для текущего пути
+    await loadLastCommit();
   } catch (err) {
     console.error('[GitFileBrowser] Failed to load tree:', err);
     error.value = 'Не удалось загрузить содержимое директории';
+  }
+}
+
+/**
+ * Загружает последний коммит для текущего пути
+ */
+async function loadLastCommit(): Promise<void> {
+  try {
+    const history = await repoStore.fetchCommits(
+      props.workspaceSlug,
+      props.repoName,
+      selectedBranch.value || undefined,
+      1, // Загружаем только последний коммит
+      0,
+    );
+
+    if (history.commits.length > 0) {
+      lastCommitForPath.value = history.commits[0];
+    } else {
+      lastCommitForPath.value = null;
+    }
+  } catch (err) {
+    console.error('[GitFileBrowser] Failed to load last commit:', err);
+    lastCommitForPath.value = null;
   }
 }
 
@@ -250,7 +489,7 @@ async function loadBranches(): Promise<void> {
     const result = await repoStore.fetchBranches(props.workspaceSlug, props.repoName);
     branches.value = result.branches;
 
-    // Если текущая ветка не выбрана или отсутствует в списке — ставим дефолтную/из пропов
+    // Если текущая ветка не выбрана или отсутствует в списке — ставим дефолтную
     if (
       !selectedBranch.value ||
       !branches.value.some((b) => b.name === selectedBranch.value)
@@ -275,9 +514,17 @@ async function loadBranches(): Promise<void> {
 }
 
 /**
- * Обработчик клика на запись в дереве
+ * Обработчик клика на запись в таблице
  */
 function onEntryClick(entry: GitTreeEntry): void {
+  if (entry.name === '..') {
+    // Переход на уровень выше
+    const parts = currentPath.value.split('/').filter(Boolean);
+    parts.pop();
+    navigateToPath(parts.join('/'));
+    return;
+  }
+
   if (entry.type === 'dir') {
     // Навигация в директорию
     const newPath = currentPath.value
@@ -285,13 +532,11 @@ function onEntryClick(entry: GitTreeEntry): void {
       : entry.name;
     navigateToPath(newPath);
   } else {
-    // Открытие файла в родительском компоненте (GitRepoPage) без изменения URL
-    selectedFile.value = entry.name;
+    // Открытие файла
     const filePath = currentPath.value
       ? `${currentPath.value}/${entry.name}`
       : entry.name;
 
-    // Эмитим событие с информацией о файле
     emit('file-selected', {
       path: filePath,
       branch: selectedBranch.value,
@@ -305,17 +550,28 @@ function onEntryClick(entry: GitTreeEntry): void {
  */
 function navigateToPath(path: string): void {
   currentPath.value = path;
-  selectedFile.value = null;
   loadTree();
 }
 
 /**
  * Обработчик смены ветки
  */
-function onBranchChange(): void {
+function onBranchChange(branchName: string): void {
+  selectedBranch.value = branchName;
   currentPath.value = '';
-  selectedFile.value = null;
   loadTree();
+}
+
+/**
+ * Показать историю коммитов
+ */
+function showHistory(): void {
+  $q.notify({
+    type: 'info',
+    message: 'История коммитов скоро будет доступна',
+    icon: 'info',
+    position: 'top',
+  });
 }
 
 /**
@@ -325,17 +581,14 @@ watch(
   () => [props.workspaceSlug, props.repoName],
   () => {
     currentPath.value = '';
-    selectedFile.value = null;
     selectedBranch.value = props.initialBranch || '';
 
-    // Сначала получаем ветки и определяем корректную ветку по умолчанию, затем грузим дерево
     loadBranches()
       .then(() => loadTree())
       .catch(() => null);
   },
 );
 
-// Обновляем выбранную ветку при изменении initialBranch (после загрузки info)
 watch(
   () => props.initialBranch,
   (newVal) => {
@@ -351,7 +604,6 @@ watch(
 );
 
 onMounted(() => {
-  // Грузим ветки, определяем дефолт, потом дерево
   loadBranches()
     .then(() => loadTree())
     .catch(() => null);
@@ -360,6 +612,428 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .git-file-browser {
-  // Стили для браузера файлов
+  // Browser Header (Breadcrumbs + Branch Selector + Code Button)
+  .browser-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background-color: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px 6px 0 0;
+    margin-bottom: 0;
+    gap: 16px;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .branch-selector {
+      font-size: 14px;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 4px 12px;
+      background-color: white;
+      flex-shrink: 0;
+
+      &:hover {
+        background-color: #f9fafb;
+      }
+    }
+
+    .path-breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+      color: #374151;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      .path-separator {
+        color: #9ca3af;
+      }
+
+      .path-part {
+        cursor: pointer;
+        color: #1f2937;
+
+        &:hover {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+      }
+    }
+
+    .copy-path-btn {
+      color: #6b7280;
+      flex-shrink: 0;
+
+      &:hover {
+        color: #374151;
+      }
+    }
+  }
+
+  // Loading State
+  .loading-container {
+    display: flex;
+    justify-content: center;
+    padding: 80px 0;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+  }
+
+  // Error State
+  .error-container {
+    padding: 24px 16px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+  }
+
+  // Browser Content
+  .browser-content {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+  }
+
+  // Last Commit Block
+  .last-commit-block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    gap: 16px;
+    flex-wrap: wrap;
+
+    .commit-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .commit-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .commit-message {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1f2937;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .commit-meta {
+      font-size: 13px;
+      color: #6b7280;
+
+      .commit-author {
+        font-weight: 500;
+        color: #374151;
+      }
+
+      .commit-time {
+        color: #6b7280;
+      }
+    }
+
+    .commit-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .commit-sha {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background-color: #f3f4f6;
+      border-radius: 6px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 13px;
+      color: #374151;
+
+      .sha-text {
+        font-weight: 500;
+      }
+    }
+  }
+
+  // File Table
+  .file-table {
+    :deep(.q-table__top),
+    :deep(.q-table__bottom) {
+      display: none;
+    }
+
+    :deep(thead tr th) {
+      background-color: #fafafa;
+      color: #374151;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: none;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    :deep(tbody tr) {
+      cursor: pointer;
+
+      &:hover {
+        background-color: #f9fafb;
+      }
+
+      td {
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 14px;
+        color: #374151;
+        padding: 12px 16px;
+      }
+    }
+
+    .name-cell {
+      .name-content {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+
+        .file-icon {
+          flex-shrink: 0;
+        }
+
+        .file-name {
+          font-weight: 500;
+          color: #1f2937;
+
+          &:hover {
+            color: #2563eb;
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+
+    .commit-cell {
+      .commit-message-short {
+        color: #6b7280;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+      }
+    }
+
+    .update-cell {
+      .update-time {
+        color: #6b7280;
+        font-size: 13px;
+      }
+    }
+  }
+
+  // Empty State
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 16px;
+    color: #9ca3af;
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .git-file-browser {
+    .browser-header {
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .header-left {
+        flex: 1 1 100%;
+      }
+
+      .header-right {
+        flex: 1 1 100%;
+        justify-content: flex-end;
+      }
+
+      .path-breadcrumbs {
+        font-size: 12px;
+      }
+    }
+
+    .last-commit-block {
+      flex-direction: column;
+      align-items: flex-start;
+
+      .commit-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    .file-table {
+      :deep(thead tr th) {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
+
+      :deep(tbody tr td) {
+        font-size: 13px;
+        padding: 10px 12px;
+      }
+    }
+  }
+}
+
+// Dark mode support
+body.body--dark {
+  .git-file-browser {
+    .browser-header {
+      background-color: #1f2937;
+      border-color: #374151;
+
+      .header-right {
+        // Dark mode styles for Code button
+      }
+
+      .branch-selector {
+        background-color: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+
+        &:hover {
+          background-color: #4b5563;
+        }
+      }
+
+      .path-breadcrumbs {
+        .path-separator {
+          color: #6b7280;
+        }
+
+        .path-part {
+          color: #f9fafb;
+
+          &:hover {
+            color: #60a5fa;
+          }
+        }
+      }
+
+      .copy-path-btn {
+        color: #9ca3af;
+
+        &:hover {
+          color: #d1d5db;
+        }
+      }
+    }
+
+    .loading-container,
+    .error-container {
+      background-color: #111827;
+      border-color: #374151;
+    }
+
+    .browser-content {
+      background-color: #111827;
+      border-color: #374151;
+    }
+
+    .last-commit-block {
+      border-color: #374151;
+
+      .commit-message {
+        color: #f9fafb;
+      }
+
+      .commit-meta {
+        .commit-author {
+          color: #d1d5db;
+        }
+
+        .commit-time {
+          color: #9ca3af;
+        }
+      }
+
+      .commit-sha {
+        background-color: #1f2937;
+        color: #d1d5db;
+      }
+    }
+
+    .file-table {
+      :deep(thead tr th) {
+        background-color: #1f2937;
+        color: #d1d5db;
+        border-color: #374151;
+      }
+
+      :deep(tbody tr) {
+        &:hover {
+          background-color: #1f2937;
+        }
+
+        td {
+          border-color: #374151;
+          color: #d1d5db;
+        }
+      }
+
+      .name-cell {
+        .name-content {
+          .file-name {
+            color: #f9fafb;
+
+            &:hover {
+              color: #60a5fa;
+            }
+          }
+        }
+      }
+
+      .commit-cell {
+        .commit-message-short {
+          color: #9ca3af;
+        }
+      }
+
+      .update-cell {
+        .update-time {
+          color: #9ca3af;
+        }
+      }
+    }
+  }
 }
 </style>

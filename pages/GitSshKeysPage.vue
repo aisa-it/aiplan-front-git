@@ -27,12 +27,7 @@
       <div class="text-body2">
         <strong>SSH сервер:</strong> {{ sshConfig.ssh_host }}:{{
           sshConfig.ssh_port
-        }}<br />
-        <strong>Клонирование репозитория:</strong>
-        <code
-          >ssh://git@{{ sshConfig.ssh_host }}:{{ sshConfig.ssh_port
-          }}/workspace-slug/repo-name.git</code
-        >
+        }}
       </div>
     </q-banner>
 
